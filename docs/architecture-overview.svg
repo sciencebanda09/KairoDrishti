@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">KairoDrishti system architecture overview</title>
+  <desc id="desc">A compact five-stage architecture diagram showing how aerial imagery becomes a geolocated rescue waypoint through local computer vision, evidence fusion, search planning and field outputs.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#101816"/><stop offset="1" stop-color="#18221c"/></linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26372d"/><stop offset="1" stop-color="#1b2921"/></linearGradient>
+    <linearGradient id="action" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d9b76c"/><stop offset="1" stop-color="#e5ca8d"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#000000" flood-opacity=".24"/></filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M1 1L11 6L1 11" fill="none" stroke="#b8d9a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>
+      .eyebrow{font:700 13px Arial,sans-serif;letter-spacing:3px;fill:#9ebf8d}.title{font:700 38px Arial,sans-serif;letter-spacing:1px;fill:#e4eee0}.subtitle{font:16px Arial,sans-serif;fill:#a8b9a8}.card-title{font:700 20px Arial,sans-serif;fill:#eef5e9}.card-copy{font:14px Arial,sans-serif;fill:#c2d1bf}.small{font:12px Arial,sans-serif;fill:#93a795}.tag{font:700 11px Arial,sans-serif;letter-spacing:1.6px;fill:#162119}.output{font:700 16px Arial,sans-serif;fill:#1d261d}.output-small{font:13px Arial,sans-serif;fill:#344235}.line{fill:none;stroke:#b8d9a1;stroke-width:3;marker-end:url(#arrow)}.dashed{fill:none;stroke:#8d9f8b;stroke-width:2;stroke-dasharray:7 7}.rule{stroke:#405344;stroke-width:1}
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#background)"/>
+  <rect x="28" y="28" width="1544" height="844" rx="24" fill="none" stroke="#38503e"/>
+
+  <text x="78" y="84" class="eyebrow">KAIRODRISHTI · PS #8</text>
+  <text x="78" y="132" class="title">From aerial evidence to rescue action</text>
+  <text x="78" y="163" class="subtitle">A local-first search intelligence loop for detecting, prioritising and dispatching geolocated waypoints.</text>
+  <rect x="1250" y="73" width="250" height="40" rx="20" fill="#b8d9a1"/><text x="1375" y="98" text-anchor="middle" class="tag">OFFLINE-FIRST · HUMAN-LED</text>
+
+  <text x="78" y="227" class="eyebrow">CORE PIPELINE</text>
+  <line x1="78" y1="244" x2="1522" y2="244" class="rule"/>
+
+  <g filter="url(#shadow)">
+    <rect x="78" y="286" width="250" height="300" rx="18" fill="url(#card)" stroke="#6d9360"/>
+    <rect x="378" y="286" width="250" height="300" rx="18" fill="url(#card)" stroke="#6d9360"/>
+    <rect x="678" y="286" width="250" height="300" rx="18" fill="url(#card)" stroke="#6d9360"/>
+    <rect x="978" y="286" width="250" height="300" rx="18" fill="url(#card)" stroke="#d0a95e"/>
+    <rect x="1278" y="286" width="244" height="300" rx="18" fill="url(#card)" stroke="#d0a95e"/>
+  </g>
+
+  <g>
+    <circle cx="112" cy="324" r="18" fill="#b8d9a1"/><text x="112" y="329" text-anchor="middle" class="tag">01</text>
+    <text x="145" y="331" class="card-title">Collect</text>
+    <text x="105" y="377" class="card-copy"><tspan x="105" dy="0">RGB · thermal · multispectral</tspan><tspan x="105" dy="27">Drone and satellite imagery</tspan><tspan x="105" dy="27">DEM / terrain elevation</tspan><tspan x="105" dy="27">Last known position</tspan></text>
+    <rect x="105" y="505" width="196" height="48" rx="8" fill="#314633"/><text x="121" y="535" class="small">Local API · cached files</text>
+
+    <circle cx="412" cy="324" r="18" fill="#e58068"/><text x="412" y="329" text-anchor="middle" class="tag">02</text>
+    <text x="445" y="331" class="card-title">Detect</text>
+    <text x="405" y="377" class="card-copy"><tspan x="405" dy="0">Person / terrain YOLO</tspan><tspan x="405" dy="27">Clothing YOLO</tspan><tspan x="405" dy="27">Thermal + multispectral cues</tspan><tspan x="405" dy="27">Change between passes</tspan></text>
+    <rect x="405" y="505" width="196" height="48" rx="8" fill="#44302a"/><text x="421" y="535" class="small">person · clothing · shelter · track</text>
+
+    <circle cx="712" cy="324" r="18" fill="#b8d9a1"/><text x="712" y="329" text-anchor="middle" class="tag">03</text>
+    <text x="745" y="331" class="card-title">Understand</text>
+    <text x="705" y="377" class="card-copy"><tspan x="705" dy="0">Fuse multi-sensor evidence</tspan><tspan x="705" dy="27">Score confidence and recency</tspan><tspan x="705" dy="27">Track repeated candidates</tspan><tspan x="705" dy="27">Geolocate the cue</tspan></text>
+    <rect x="705" y="505" width="196" height="48" rx="8" fill="#314633"/><text x="721" y="535" class="small">Candidate queue + nearest-decay</text>
+
+    <circle cx="1012" cy="324" r="18" fill="#e5c77f"/><text x="1012" y="329" text-anchor="middle" class="tag">04</text>
+    <text x="1045" y="331" class="card-title">Prioritise</text>
+    <text x="1005" y="377" class="card-copy"><tspan x="1005" dy="0">LKP and movement model</tspan><tspan x="1005" dy="27">Terrain and visibility</tspan><tspan x="1005" dy="27">Prior coverage</tspan><tspan x="1005" dy="27">Ranked search sectors</tspan></text>
+    <rect x="1005" y="505" width="196" height="48" rx="8" fill="#4a3e29"/><text x="1021" y="535" class="small">Which area should be searched next?</text>
+
+    <circle cx="1312" cy="324" r="18" fill="#e5c77f"/><text x="1312" y="329" text-anchor="middle" class="tag">05</text>
+    <text x="1345" y="331" class="card-title">Act</text>
+    <text x="1305" y="377" class="card-copy"><tspan x="1305" dy="0">Battery-aware route</tspan><tspan x="1305" dy="27">A* terrain clearance</tspan><tspan x="1305" dy="27">Swarm sectors</tspan><tspan x="1305" dy="27">Return-home reserve</tspan></text>
+    <rect x="1305" y="505" width="190" height="48" rx="8" fill="url(#action)"/><text x="1321" y="535" class="output-small">Waypoint → ground team</text>
+  </g>
+
+  <path d="M328 436H370" class="line"/><path d="M628 436H670" class="line"/><path d="M928 436H970" class="line"/><path d="M1228 436H1270" class="line"/>
+
+  <g>
+    <text x="78" y="654" class="eyebrow">OPERATOR SURFACE</text>
+    <line x1="78" y1="670" x2="1522" y2="670" class="rule"/>
+    <rect x="78" y="700" width="1444" height="92" rx="16" fill="#1d2b22" stroke="#526b54"/>
+    <text x="108" y="736" class="card-title">Dashboard</text>
+    <text x="108" y="765" class="card-copy">3D terrain + geographic map</text>
+    <text x="410" y="765" class="card-copy">Live drone camera</text>
+    <text x="650" y="765" class="card-copy">People / clothing / shelter / track counts</text>
+    <text x="1030" y="765" class="card-copy">Candidate queue</text>
+    <text x="1230" y="765" class="card-copy">Export field packet</text>
+    <path d="M203 700V606" class="dashed"/><path d="M510 700V606" class="dashed"/><path d="M825 700V606" class="dashed"/><path d="M1102 700V606" class="dashed"/><path d="M1400 700V606" class="dashed"/>
+  </g>
+
+  <g>
+    <text x="78" y="840" class="small">Solid arrows: evidence and decisions</text>
+    <text x="420" y="840" class="small">Dashed links: operator view and feedback</text>
+    <text x="910" y="840" class="small">Red: detection · amber: mission action · green: validated local output</text>
+  </g>
+</svg>

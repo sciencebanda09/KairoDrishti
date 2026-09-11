@@ -85,3 +85,5 @@ models/*.ckpt
 *.png
 *.webp
 *.mp4
+!docs/screenshots/
+!docs/screenshots/*.png

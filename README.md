@@ -139,6 +139,28 @@ The system is offline-first: local detection, geospatial processing, tracking, p
 
 [Open the compact technical architecture overview](docs/architecture-overview.svg)
 
+## Dashboard screenshots
+
+The dashboard turns the PS #8 pipeline into an operator workflow: the map shows ranked sectors and routes, the camera shows the selected aircraft view, and the operations panels explain what was detected and what the rescue team should do next.
+
+### Mission overview
+
+The main console combines 3D terrain, geographic context, live camera view, route coverage, drone position, and field coordinates in one screen.
+
+![KairoDrishti dashboard overview](docs/screenshots/dashboard-overview.png)
+
+### Detection to field waypoint
+
+The operations view connects human-sign intelligence to action: candidate type, confidence, latitude/longitude, investigation status, and field-packet readiness are shown together.
+
+![Detection queue and geolocated field output](docs/screenshots/detection-and-field-output.png)
+
+### Coordinated swarm search
+
+Swarm mode assigns separate sectors to each aircraft and shows ownership, route separation, battery state, and geographic coverage for coordinated search.
+
+![KairoDrishti swarm search](docs/screenshots/swarm-search.png)
+
 ## Quick start
 
 ```bash
