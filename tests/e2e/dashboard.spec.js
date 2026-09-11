@@ -16,6 +16,9 @@ const mission = {
 
 async function mockApi(page) {
   let swarmPasses = 0
+  const candidate = { id: 'candidate-person-1', lat: 30.3634, lon: 78.0834, altitude: 1180, confidence: .86, label: 'possible person', band: 'thermal', source_frame: 'thermal-0001', evidence: 'thermal hot-region; investigation cue' }
+  const candidateMission = { ...mission, detections: [candidate], waypoints: [{ sequence: 1, kind: 'investigate', lat: candidate.lat, lon: candidate.lon, altitude: candidate.altitude, rationale: 'possible person; confidence 86%' }, ...mission.waypoints] }
+  const investigatedMission = { ...candidateMission, detections: [{ ...candidate, investigated: true }] }
   const swarmDrones = [1, 2, 3, 4].map((index) => ({ drone_id: `DRONE-${String(index).padStart(2, '0')}`, status: 'searching', battery_percent: 80 - index * 4, lat: 30.362 + index * .0002, lon: 78.082 + index * .0002, assigned_sector_id: `SECTOR-${String.fromCharCode(64 + index)}`, communication_ok: true }))
   const swarmPacket = (initialized = true) => ({ mission_id: 'SWARM-E2E-001', offline: true, mode: 'swarm', initialized, simulation_only: true, planning_only: true, framing: 'SIMULATION / PLANNING ONLY', tracking_mode: 'nearest_decay', home: mission.home, cells: [1, 2, 3, 4].map((index) => ({ id: `SECTOR-${String.fromCharCode(64 + index)}`, lat: 30.363 + index * .001, lon: 78.083 + index * .001, priority: index, likelihood: .8 })), drones: initialized ? swarmDrones : [], sectors: initialized ? swarmDrones.map((drone) => ({ cell_id: drone.assigned_sector_id, owning_drone_id: drone.drone_id, owner_status: 'searching', coverage_fraction: .25, priority: 1, likelihood: .8 })) : [], detections: swarmPasses ? [{ id: 'simulated-person', track_id: 'TRK-001', lat: 30.364, lon: 78.084, confidence: .72, label: 'simulated candidate', band: 'rgb' }] : [], tracks: swarmPasses ? [{ track_id: 'TRK-001', lat: 30.364, lon: 78.084, confidence: .72, detection_count: swarmPasses, tracking_mode: 'nearest_decay' }] : [], waypoints: Object.fromEntries((initialized ? swarmDrones : []).map((drone) => [drone.drone_id, [{ sequence: 1, kind: 'search', lat: 30.363, lon: 78.083, altitude: 1180, cell_id: drone.assigned_sector_id }, { sequence: 2, kind: 'return_home', lat: mission.home.lat, lon: mission.home.lon, altitude: mission.home.altitude }]])), swarm_coverage_fraction: .25, no_fly: mission.no_fly })
   await page.route('**/api/mission', async route => route.fulfill({ json: mission }))
@@ -27,7 +30,8 @@ async function mockApi(page) {
   await page.route('**/api/terrain', async route => route.fulfill({ json: { source: 'synthetic', grid: null, bounds: null } }))
   await page.route('**/api/readiness', async route => route.fulfill({ json: { detector_mode: 'opencv', model_loaded: false, terrain_detector_ready: false, planner_ready: false, opensky_enabled: false } }))
   await page.route('**/api/airspace', async route => route.fulfill({ json: { source: 'disabled', available: false, aircraft: [] } }))
-  await page.route('**/api/frames/detect', async route => route.fulfill({ json: mission }))
+  await page.route('**/api/frames/detect', async route => route.fulfill({ json: candidateMission }))
+  await page.route('**/api/mission/detections/investigate', async route => route.fulfill({ json: investigatedMission }))
   await page.route('**/api/change-detection', async route => route.fulfill({ json: { ...mission, change_registration: { registered: true, score: .91, method: 'orb-ransac-homography' } } }))
   await page.route('**/api/terrain/load', async route => route.fulfill({ json: {
     terrain: { source: 'dem', format: 'srtm', resolution_m: [30, 30], grid: [[100]], bounds: { south: 30, west: 78, north: 30.01, east: 78.01 } },
@@ -55,6 +59,44 @@ test('synthetic flight advances through route coordinates', async ({ page }) => 
   const first = await page.locator('#cameraReadout').textContent()
   await expect.poll(async () => page.locator('#cameraReadout').textContent(), { timeout: 5_000 }).not.toBe(first)
   await expect(page.locator('#cameraReadout')).toContainText('AIRBORNE')
+  await expect(page.locator('#cameraLiveState')).toContainText('LIVE REPLAY')
+  await expect(page.locator('#cameraFrameCounter')).toContainText('FRAME')
+  await expect(page.locator('#missionCard')).toContainText('HOW THIS SOLVES PS #8')
+  const cameraBox = await page.locator('#cameraViewport canvas').boundingBox()
+  expect(cameraBox?.width).toBeGreaterThan(100)
+  expect(cameraBox?.height).toBeGreaterThan(240)
+})
+
+test('mission guidance explains the operational loop', async ({ page }) => {
+  await expect(page.locator('#actionDetail')).toContainText('planner')
+  await expect(page.locator('#nextAction')).toContainText(/WATCH LIVE CAMERA/i)
+  await expect(page.locator('#railStatusDetail')).toContainText('ranked route')
+  await expect(page.locator('#missionStory [data-stage="priority"]')).toHaveClass(/active|complete/)
+  await expect(page.locator('#fieldPacketStatus')).toHaveText('WAITING FOR A CANDIDATE')
+  await expect(page.locator('#mapContextBadge')).toHaveText('OFFLINE SYNTHETIC MAP')
+})
+
+test('geographic context marks an operator coordinate', async ({ page }) => {
+  await expect(page.locator('#geoMap')).toBeVisible()
+  const mapBox = await page.locator('#geoMap').boundingBox()
+  expect(mapBox?.width).toBeGreaterThan(250)
+  expect(mapBox?.height).toBeGreaterThan(120)
+  await page.locator('#coordinateLat').fill('30.364')
+  await page.locator('#coordinateLon').fill('78.084')
+  await page.getByRole('button', { name: 'MARK COORDINATE' }).click()
+  await expect(page.locator('#operationStatus')).toContainText('OPERATOR WAYPOINT MARKED')
+  await expect(page.locator('#fieldPacketStatus')).toContainText('FIELD PACKET READY')
+  await expect(page.locator('#fieldPacketCoordinates')).toHaveText('30.364000, 78.084000')
+})
+
+test('candidate detection becomes a rescue coordinate packet', async ({ page }) => {
+  await page.getByRole('button', { name: 'TEST SENSOR' }).click()
+  await expect(page.locator('#detectionPanel')).toContainText('POSSIBLE PERSON')
+  await expect(page.locator('#fieldPacketStatus')).toContainText('POSSIBLE PERSON')
+  await page.getByRole('button', { name: 'INVESTIGATE COORDINATE' }).click()
+  await expect(page.locator('#fieldPacketStatus')).toContainText('FIELD PACKET READY')
+  await expect(page.locator('#fieldPacketCoordinates')).toHaveText('30.363400, 78.083400')
+  await expect(page.locator('#missionStory [data-stage="packet"]')).toHaveClass(/active/)
 })
 
 test('analysis bands change the active camera presentation', async ({ page }) => {
@@ -102,4 +144,6 @@ test('swarm control shows four drones, hatch, and an associated track after two 
   await expect(page.locator('.track-row')).toHaveCount(1)
   await expect(page.locator('.track-row')).toContainText('TRK-001')
   await expect(page.locator('#airspaceBadge')).toHaveText('SWARM · PLANNING ONLY')
+  await expect(page.locator('#swarmEmpty')).toBeHidden()
+  await expect(page.locator('#cameraLiveState')).toContainText('LIVE REPLAY')
 })

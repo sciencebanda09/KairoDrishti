@@ -34,6 +34,7 @@ button:disabled { cursor: wait; opacity: .45; }
 /* Swarm additions retain the tactical HUD palette while keeping planning
    entities visually distinct from the red/orange priority and candidate cues. */
 .mode-button { padding: 5px 8px; border: 1px solid #8a724c; background: #302b20; color: #edcb91; font: 9px ui-monospace, monospace; letter-spacing: .06em; }
+.compare-topbar-action { padding: 5px 8px; border: 1px solid #8f754e; background: #342d20; color: #edc681; font: 8px ui-monospace, monospace; white-space: nowrap; }
 .swatch.nofly { border-radius: 1px; border: 1px solid #e5b45e; background: repeating-linear-gradient( -45deg, #e5b45e 0 2px, #443923 2px 5px ); }
 .no-fly-hatch-dom { position: absolute; z-index: 4; top: 15px; right: 18px; width: 16px; height: 16px; border: 1px solid #e5b45e; opacity: .8; pointer-events: none; }
 .swarm-card, .tracks-card { min-height: 0; overflow: hidden; border: 1px solid #354231; background: #1a221a; }
@@ -53,3 +54,141 @@ button:disabled { cursor: wait; opacity: .45; }
 .track-row strong { display: block; color: #f0d49f; font: 600 10px ui-monospace, monospace; }.track-row span, .track-row small { display: block; margin-top: 3px; color: #b8cbae; font: 8px ui-monospace, monospace; }.track-row small { color: #859681; }
 .tracks-card .empty-state { display: flex; align-items: center; gap: 9px; height: calc(100% - 38px); }
 .swarm-card[hidden], .tracks-card[hidden] { display: none; }
+
+/* Visual hierarchy: the terrain is the operational surface; the rail is a
+   compact workflow, with only the current control surface expanded. */
+.workspace { grid-template-columns: minmax(0, 1fr) 390px; }
+.viewport-panel { border: 2px solid #739363; background: #172217; box-shadow: inset 0 0 0 1px #b2d58a22, inset 0 0 48px #7d9c4b12, 0 0 24px #79965c25, 0 16px 36px #0006; }
+.viewport-toolbar { top: 13px; left: 14px; right: 14px; padding: 10px 12px; background: linear-gradient(90deg, #0d150edb 0%, #1018109d 54%, transparent 100%); }
+.viewport-toolbar .card-subtitle { flex-basis: 100%; margin: 0 0 0 1px; }
+.right-rail { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
+.rail-status { flex: 0 0 44px; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0 11px; border: 1px solid #344431; background: #151d16; }
+.rail-status .section-kicker { color: #84977d; font-size: 9px; }
+.rail-status strong { color: #e0edcf; font: 600 11px ui-monospace, monospace; letter-spacing: .08em; white-space: nowrap; }
+.rail-status > span:last-child { min-width: 0; overflow: hidden; color: #8fa18a; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.active-panel { flex: 1 1 auto; min-height: 270px; overflow: auto; border-color: #638052; background: #1a2419; box-shadow: 0 8px 24px #0003; }
+.active-panel .card-head { background: linear-gradient(90deg, #263723, #1a2419); }
+.card-subtitle { margin: -1px 14px 10px; color: #82927d; font-size: 10px; line-height: 1.3; }
+.secondary-panel { flex: 0 0 auto; min-height: 48px; overflow: hidden; border: 1px solid #2f3b2d; background: #171e17; color: #dbe5d6; }
+.secondary-panel .card-summary { display: block; min-height: 46px; padding: 0; cursor: pointer; list-style: none; }
+.secondary-panel .card-summary::-webkit-details-marker { display: none; }
+.secondary-panel .card-summary::after { content: '+'; position: absolute; right: 12px; top: 16px; color: #75846f; font: 14px ui-monospace, monospace; }
+.secondary-panel[open] .card-summary::after { content: '−'; }
+.secondary-panel .card-head { min-height: 32px; padding: 0 12px; border-bottom: 0; background: transparent; }
+.secondary-panel .card-head .section-kicker { color: #a0ad9a; font-size: 9px; }
+.secondary-panel .card-subtitle { margin: -4px 38px 7px 12px; color: #73816e; font-size: 9px; }
+.secondary-panel .secondary-content { min-height: 0; border-top: 1px solid #293629; }
+.secondary-panel[open] { flex: 1 1 0; min-height: 180px; overflow: hidden; }
+.secondary-panel[open] .secondary-content { height: calc(100% - 58px); overflow: auto; }
+.secondary-panel.attention { border-color: #c99558; box-shadow: 0 0 0 1px #c9955844, 0 0 18px #c9955833; animation: panelAttention 1s ease-in-out 3; }
+.secondary-panel.attention .card-subtitle::after { content: '  • NEW'; color: #e5b66f; font: 700 8px ui-monospace, monospace; }
+.detection-card .detection-list, .tracks-card .tracks-list { height: auto; overflow: visible; }
+.detection-card .empty-state, .tracks-card .empty-state { padding: 12px; }
+.camera-card { position: relative; }
+.camera-card .card-summary { position: relative; }
+.quick-sensor-tabs { display: flex; gap: 4px; padding: 0 12px 8px; }
+.quick-sensor-tabs button { flex: 1 1 0; min-width: 0; padding: 5px 2px; border: 1px solid #334430; background: #202b20; color: #849481; font: 8px ui-monospace, monospace; }
+.quick-sensor-tabs button.active { border-color: #78945d; background: #31452d; color: #d7e7c8; }
+.quick-sensor-tabs #loadChange { flex: 0 0 auto; padding-inline: 5px; border-color: #8f754e; background: #342d20; color: #edc681; font-size: 7px; }
+.camera-compare-action { position: absolute; z-index: 10; top: 52px; right: 12px; padding: 5px 8px; border: 1px solid #8f754e; background: #342d20; color: #edc681; font: 8px ui-monospace, monospace; }
+.camera-summary-controls { display: flex; align-items: center; gap: 7px; padding: 0 12px 8px; }
+.camera-summary-controls > label { display: flex; align-items: center; gap: 5px; color: #859681; font: 8px ui-monospace, monospace; white-space: nowrap; }
+.camera-summary-controls select { max-width: 126px; padding: 4px 5px; border: 1px solid #4b6045; background: #202b20; color: #d5e4cc; font: 8px ui-monospace, monospace; }
+.camera-summary-controls .quick-sensor-tabs { flex: 1; padding: 0; }
+.camera-card { flex: 0 0 300px !important; min-height: 300px !important; overflow: hidden; }
+.camera-card .card-summary { cursor: default; }
+.camera-card .card-summary::after { display: none; }
+.camera-card .camera-content { height: calc(100% - 78px) !important; min-height: 0; }
+.camera-card #cameraViewport { top: 78px; bottom: 94px; }
+.camera-card .camera-readout { bottom: 104px; }
+.camera-content { position: relative; height: 100%; min-height: 260px; }
+.camera-card #cameraViewport { top: 0; bottom: 94px; }
+.camera-card .sensor-workspace { min-height: 94px; }
+.minimap-panel { top: 66px; right: 16px; width: 220px; height: 168px; border: 0; background: #10181045; box-shadow: none; opacity: .82; }
+.minimap-head { padding: 6px 7px; background: #10181066; color: #bacab2; font-size: 8px; }
+.minimap-legend { background: #10181066; }
+.minimap-readout { background: #10181066; }
+.onboarding-banner { position: absolute; z-index: 6; top: 62px; left: 18px; right: 250px; display: flex; align-items: center; gap: 12px; min-height: 34px; padding: 7px 9px 7px 12px; border: 1px solid #718c5c; background: #162216e8; color: #d9e8ce; box-shadow: 0 8px 20px #0005; font-size: 11px; }
+.onboarding-banner span { flex: 1; }
+.onboarding-banner button { padding: 4px 6px; border: 1px solid #526c48; background: transparent; color: #a9bd9b; font: 8px ui-monospace, monospace; }
+.operation-status.alert { color: #ffd27d; text-shadow: 0 0 12px #c67939; }
+.camera-scan-active .camera-band-overlay { border-color: #ffd27d; color: #ffe4a4; animation: scanPulse .7s ease-in-out infinite alternate; }
+.camera-scan-active #cameraViewport::before { content: ''; position: absolute; z-index: 2; left: 0; right: 0; top: -18%; height: 18%; background: linear-gradient(180deg, transparent, #ffd47a99, transparent); animation: scanSweep 1.2s linear 2; pointer-events: none; }
+@keyframes scanPulse { from { opacity: .72; transform: translate(-50%, -50%) scale(.98); } to { opacity: 1; transform: translate(-50%, -50%) scale(1.04); } }
+@keyframes scanSweep { to { top: 100%; } }
+@keyframes panelAttention { 0%, 100% { transform: translateX(0); } 35% { transform: translateX(-3px); } 70% { transform: translateX(3px); } }
+@media (max-width: 1120px) { .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(540px, 68vh) auto auto; }.right-rail { overflow: visible; }.active-panel { min-height: 300px; }.onboarding-banner { right: 18px; } }
+@media (max-width: 700px) { .minimap-panel { top: 58px; right: 10px; width: 205px; height: 160px; }.onboarding-banner { top: 58px; left: 10px; right: 10px; font-size: 10px; }.quick-sensor-tabs button { font-size: 7px; } }
+
+/* Live synthetic camera and operator-readable mission guidance. */
+.mission-explainer { display: grid; gap: 3px; margin: 0 14px 11px; padding: 8px 9px; border-left: 2px solid #9dbb72; background: #202e20; }
+.mission-explainer strong { color: #d6e7bf; font: 8px ui-monospace, monospace; letter-spacing: .08em; }
+.mission-explainer span { color: #9caf94; font-size: 10px; line-height: 1.35; }
+.camera-card { display: flex; flex-direction: column; flex: 0 0 330px !important; min-height: 330px !important; }
+.camera-card .camera-summary-controls { flex: 0 0 auto; }
+.camera-card .camera-content { position: relative; flex: 1 1 190px; height: 190px !important; min-height: 190px; overflow: hidden; }
+.camera-card #cameraViewport { position: absolute; inset: 0 0 86px 0; width: auto; height: 150px !important; min-height: 150px; }
+.camera-card #cameraViewport canvas { width: 100%; height: 150px !important; min-height: 150px; }
+.camera-hud { position: absolute; z-index: 5; top: 9px; right: 10px; left: 10px; display: flex; justify-content: space-between; gap: 6px; color: #dcebcf; font: 8px ui-monospace, monospace; letter-spacing: .05em; text-shadow: 0 1px 4px #000; pointer-events: none; }
+.camera-hud span:first-child { color: #b9ed9a; }
+.camera-crosshair { position: absolute; z-index: 4; top: 45%; left: 50%; width: 38px; height: 38px; transform: translate(-50%, -50%); border: 1px solid #dcebbd99; border-radius: 50%; pointer-events: none; }
+.camera-crosshair::before, .camera-crosshair::after { content: ''; position: absolute; background: #dcebbd99; }
+.camera-crosshair::before { top: 18px; right: -8px; left: -8px; height: 1px; }.camera-crosshair::after { top: -8px; bottom: -8px; left: 18px; width: 1px; }
+.camera-crosshair i, .camera-crosshair b { position: absolute; display: block; background: #f0d28e; }.camera-crosshair i { top: 18px; left: 18px; width: 3px; height: 3px; border-radius: 50%; }.camera-crosshair b { right: -2px; bottom: -2px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 10px #f0d28e; }
+.camera-readout { bottom: 96px; z-index: 5; }
+.camera-card .sensor-workspace { position: absolute; z-index: 6; right: 0; bottom: 0; left: 0; min-height: 86px; }
+.detection-row em { display: block; margin-top: 5px; color: #e4c98d; font-size: 8px; line-height: 1.3; }
+.detection-row .quiet-button { margin-top: 6px; }
+.topmeta { min-width: 0; flex-wrap: wrap; }
+.topmeta .compare-topbar-action { flex: 0 0 auto; }
+.right-rail { overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+.right-rail > .active-panel { flex: 0 0 auto; }
+.right-rail > .mission-card { min-height: 340px; }
+.right-rail > .swarm-card { min-height: 300px; }
+.right-rail > .secondary-panel[open] { flex: 0 0 220px; min-height: 180px; }
+.camera-card[open] { flex-basis: 330px !important; }
+@media (max-width: 1120px) { .right-rail { overflow: visible; }.workspace { grid-template-rows: minmax(540px, 68vh) auto auto; }.camera-card { flex-basis: 360px !important; min-height: 360px !important; }.camera-card .camera-content { height: 220px !important; min-height: 220px; } }
+@media (max-width: 700px) { .camera-card { flex-basis: 320px !important; min-height: 320px !important; }.camera-card .camera-content { height: 180px !important; min-height: 180px; }.camera-hud { font-size: 7px; }.topmeta { gap: 6px; }.mission-explainer span { font-size: 9px; } }
+[hidden] { display: none !important; }
+.mission-story { display: flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border: 1px solid #354431; background: #151d16; color: #71816b; font: 8px ui-monospace, monospace; letter-spacing: .04em; }
+.mission-story span { padding: 5px 4px; white-space: nowrap; }.mission-story span.active { color: #f2d28b; background: #3a3020; }.mission-story span.complete { color: #9ec986; }.mission-story i { width: 11px; height: 1px; background: #435341; }.mission-story i.complete { background: #9ec986; }
+.field-packet-card { display: grid; gap: 4px; margin: 0 14px 10px; padding: 8px 9px; border: 1px solid #46583e; background: #182319; }.field-packet-card > div { display: flex; justify-content: space-between; gap: 8px; }.field-packet-card small { color: #8a9b82; font: 8px ui-monospace, monospace; }.field-packet-card strong { color: #d9e7c8; font: 8px ui-monospace, monospace; text-align: right; }.field-packet-card > span { color: #b4c99a; font: 10px ui-monospace, monospace; }.field-packet-card.ready { border-color: #b7c978; background: #26361f; box-shadow: 0 0 16px #9bbd5c33; }.field-packet-card.ready strong { color: #dff2ae; }
+.map-context-badge.external { border-color: #789bc0; color: #b6d5f1; }
+.footer-actions #openOsm { border-color: #6d8aa8; color: #bad7ef; }
+@media (max-width: 700px) { .mission-story { gap: 1px; padding: 0 4px; font-size: 7px; }.mission-story i { width: 4px; }.mission-story span { padding-inline: 2px; } }
+
+/* Camera is a primary operator surface: keep a useful forward-looking frame
+   visible instead of compressing it beneath the swarm roster. */
+.right-rail .mission-card { order: 2; }
+.right-rail .camera-card { order: 3; flex: 0 0 450px !important; min-height: 450px !important; }
+.right-rail .swarm-card { order: 4; }
+.right-rail .tracks-card { order: 5; }
+.right-rail .detection-card { order: 6; }
+.right-rail:has(.swarm-card:not([hidden])) .camera-card { order: 2; }
+.right-rail:has(.swarm-card:not([hidden])) .swarm-card { order: 3; }
+.camera-card .camera-content { flex: 1 1 330px; height: 330px !important; min-height: 330px; }
+.camera-card #cameraViewport { inset: 0 0 86px 0; height: auto !important; min-height: 0; }
+.camera-card #cameraViewport canvas { height: 100% !important; min-height: 0; }
+@media (max-width: 1120px) { .right-rail .camera-card { flex-basis: 450px !important; min-height: 450px !important; }.camera-card .camera-content { height: 330px !important; min-height: 330px; } }
+@media (max-width: 700px) { .right-rail .camera-card { flex-basis: 390px !important; min-height: 390px !important; }.camera-card .camera-content { height: 270px !important; min-height: 270px; } }
+
+/* Geographic context is a second, human-readable coordinate view. It stays
+   independent from the synthetic 3D terrain so the console remains useful
+   when OSM tiles cannot be reached in the field. */
+.geo-map-panel { position: absolute; z-index: 5; left: 18px; bottom: 58px; width: 340px; height: 258px; border: 1px solid #638052; background: #111a12e8; box-shadow: 0 10px 28px #0006; }
+.geo-map-head { position: absolute; z-index: 2; top: 0; right: 0; left: 0; display: flex; justify-content: space-between; gap: 8px; padding: 8px 9px; background: #172217ee; color: #c6d7b9; font: 9px ui-monospace, monospace; letter-spacing: .06em; }
+.geo-map-head span:last-child { color: #d5b871; font-size: 8px; text-align: right; }
+.geo-map-head span:last-child.online { color: #b9dda0; }
+#geoMap { position: absolute; top: 31px; right: 0; bottom: 43px; left: 0; background: #1b281d; }
+.geo-map-panel .leaflet-container { background: #1b281d; color: #e1ecd9; font: 9px ui-monospace, monospace; }
+.geo-map-panel .leaflet-control-attribution { background: #101810cc; color: #aab9a2; font-size: 7px; }
+.geo-map-panel .leaflet-control-attribution a { color: #c8e0b8; }
+.geo-map-panel .leaflet-bar a { width: 22px; height: 22px; line-height: 20px; border-color: #566c50; background: #172217e8; color: #d4e5cb; }
+.coordinate-entry { position: absolute; z-index: 3; right: 0; bottom: 0; left: 0; display: flex; gap: 4px; padding: 6px; border-top: 1px solid #354431; background: #172217; }
+.coordinate-entry input { min-width: 0; flex: 1; width: 0; padding: 6px 5px; border: 1px solid #4a6044; background: #202b20; color: #e0edda; font: 8px ui-monospace, monospace; }
+.coordinate-entry input::placeholder { color: #7d9276; }
+.coordinate-entry button { flex: 0 0 auto; padding: 6px 7px; border: 1px solid #a18450; background: #3a3020; color: #f0d28e; font: 8px ui-monospace, monospace; }
+.geo-marker-wrap { border: 0; background: transparent; }
+.geo-marker { display: block; width: 11px; height: 11px; border: 2px solid #eef6e5; border-radius: 50%; background: var(--marker-color); box-shadow: 0 0 0 3px #101710aa, 0 0 10px var(--marker-color); }
+.geo-marker-wrap b { position: absolute; top: -2px; left: 16px; color: #eef6e5; font: 700 8px ui-monospace, monospace; white-space: nowrap; text-shadow: 0 1px 3px #000; }
+@media (max-width: 700px) { .geo-map-panel { right: 10px; bottom: 58px; left: 10px; width: auto; height: 220px; } }
