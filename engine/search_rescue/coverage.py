@@ -19,17 +19,23 @@ def _inside(point: GeoPoint, polygon: list[GeoPoint]) -> bool:
     return inside
 
 
+def _orientation(a: GeoPoint, b: GeoPoint, c: GeoPoint) -> float:
+    return (b.lon - a.lon) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lon - a.lon)
+
+
+def _intersects(a: GeoPoint, b: GeoPoint, c: GeoPoint, d: GeoPoint) -> bool:
+    o1, o2 = _orientation(a, b, c), _orientation(a, b, d)
+    o3, o4 = _orientation(c, d, a), _orientation(c, d, b)
+    return ((o1 > 0) != (o2 > 0)) and ((o3 > 0) != (o4 > 0))
+
+
 def _safe_leg(start: GeoPoint, end: GeoPoint, polygon: list[GeoPoint] | None) -> bool:
     if not polygon:
         return True
-    # Sample the short leg; this is deterministic and conservative for the demo.
-    for step in range(11):
-        fraction = step / 10
-        point = GeoPoint(start.lat + (end.lat - start.lat) * fraction,
-                         start.lon + (end.lon - start.lon) * fraction)
-        if _inside(point, polygon):
-            return False
-    return True
+    if _inside(start, polygon) or _inside(end, polygon):
+        return False
+    return not any(_intersects(start, end, left, right)
+                   for left, right in zip(polygon, polygon[1:] + polygon[:1]))
 
 
 def plan_coverage(
@@ -46,7 +52,7 @@ def plan_coverage(
     route: list[SearchWaypoint] = []
     current = home
     spent = 0.0
-    for cell in sorted(cells, key=lambda item: item.priority or 999):
+    for cell in sorted(cells, key=lambda item: item.priority):
         if not _safe_leg(current, cell.center, airspace_polygon):
             continue
         leg = _distance_m(current, cell.center)
@@ -57,9 +63,12 @@ def plan_coverage(
         route.append(SearchWaypoint(len(route) + 1, cell.center,
                                     WaypointKind.SEARCH, cell.cell_id,
                                     dwell_seconds,
-                                    f"priority {cell.priority}; likelihood {cell.likelihood:.0%}"))
+                                    f"priority rank {cell.priority}; likelihood {cell.likelihood:.0%}"))
         spent += leg + task_cost
         current = cell.center
+    return_rationale = f"return reserve {reserve_m / cruise_mps / 60:.1f} min"
+    if not _safe_leg(current, home, airspace_polygon):
+        return_rationale += "; direct return intersects no-fly polygon"
     route.append(SearchWaypoint(len(route) + 1, home, WaypointKind.RETURN_HOME,
-                                rationale=f"return reserve {reserve_m / cruise_mps / 60:.1f} min"))
+                                rationale=return_rationale))
     return route

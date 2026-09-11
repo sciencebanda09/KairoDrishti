@@ -6,6 +6,14 @@ from math import hypot
 from .models import AerialDetection, DetectionBand
 
 
+def _frame_family(source_frame: str) -> str:
+    value = source_frame.lower()
+    for suffix in ("-thermal", "-infrared", "-ir", "-rgb", "-visible"):
+        if value.endswith(suffix):
+            return value[:-len(suffix)]
+    return value
+
+
 def fuse_detections(
     detections: list[AerialDetection], *, radius_m: float = 35.0
 ) -> list[AerialDetection]:
@@ -20,8 +28,10 @@ def fuse_detections(
         for group in groups:
             anchor = group[0].location
             # Good enough for the short distances covered by one image tile.
-            if hypot((detection.location.lat - anchor.lat) * 111_000,
-                     (detection.location.lon - anchor.lon) * 111_000) <= radius_m:
+            same_family = not detection.source_frame or not group[0].source_frame or _frame_family(detection.source_frame) == _frame_family(group[0].source_frame)
+            different_band = detection.band not in {item.band for item in group}
+            if same_family and different_band and hypot((detection.location.lat - anchor.lat) * 111_000,
+                                                        (detection.location.lon - anchor.lon) * 111_000) <= radius_m:
                 group.append(detection)
                 break
         else:
@@ -35,12 +45,13 @@ def fuse_detections(
         labels = ", ".join(sorted({item.label for item in group}))
         evidence = " + ".join(sorted({item.band.value for item in group}))
         fused.append(AerialDetection(
-            detection_id=f"FUSED-{index:03d}",
+            detection_id=group[0].detection_id if len(group) == 1 else f"FUSED-{index:03d}",
             location=group[0].location,
             label=labels,
             confidence=confidence,
             band=DetectionBand.THERMAL if DetectionBand.THERMAL in bands else group[0].band,
             source_frame=", ".join(item.source_frame for item in group if item.source_frame),
             evidence=f"corroborated by {evidence}",
+            related_locations=tuple(item.location for item in group),
         ))
     return sorted(fused, key=lambda item: item.confidence, reverse=True)

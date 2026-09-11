@@ -9,6 +9,7 @@ class DetectionBand(str, Enum):
     RGB = "rgb"
     THERMAL = "thermal"
     MULTISPECTRAL = "multispectral"
+    CHANGE = "change"
 
 
 class WaypointKind(str, Enum):
@@ -33,6 +34,8 @@ class AerialDetection:
     band: DetectionBand = DetectionBand.RGB
     source_frame: str = ""
     evidence: str = ""
+    investigated: bool = False
+    related_locations: tuple[GeoPoint, ...] = ()
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:
@@ -50,6 +53,11 @@ class SearchCell:
     movement_score: float = 0.5
     likelihood: float = 0.0
     priority: int = 0
+    elevation_m: float | None = None
+    slope_deg: float | None = None
+    dem_slope_score: float | None = None
+    vegetation_index: float | None = None
+    satellite_context_score: float | None = None
 
 
 @dataclass
@@ -72,4 +80,3 @@ class SearchWaypoint:
     cell_id: Optional[str] = None
     dwell_seconds: int = 0
     rationale: str = ""
-

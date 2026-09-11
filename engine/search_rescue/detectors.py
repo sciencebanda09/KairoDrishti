@@ -13,7 +13,8 @@ import numpy as np
 from scipy import ndimage
 
 from .models import AerialDetection, DetectionBand, GeoPoint
-from .change import detect_changes
+from .change import detect_registered_changes, RegistrationReport
+from .vision import refine_change_mask
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,20 @@ class FrameMetadata:
     location: GeoPoint
     heading_deg: float = 0.0
     ground_sample_distance_m: float = 0.25
+    image_width: int = 0
+    image_height: int = 0
+    crs: str = "EPSG:4326"
+    geo_transform: tuple[float, float, float, float, float, float] | None = None
+    camera_pitch_deg: float = -90.0
+    camera_roll_deg: float = 0.0
+    focal_length_px: float = 0.0
+    source_type: str = "drone"
+    timestamp: str = ""
+    metadata_quality: str = "approximate"
+    band_names: tuple[str, ...] = ()
+    metadata_warnings: tuple[str, ...] = ()
+    cloud_percent: float | None = None
+    processing_level: str = ""
 
 
 def _components(mask: np.ndarray, minimum: int = 12) -> list[tuple[int, int, int, int, int]]:
@@ -39,19 +54,12 @@ def _detection(meta: FrameMetadata, box: tuple[int, int, int, int, int], band: D
                confidence: float, label: str, evidence: str) -> AerialDetection:
     x0, y0, x1, y1, _ = box
     height = max(y1 - y0 + 1, 1)
-    width = max(x1 - x0 + 1, 1)
+    if meta.image_width <= 0 or meta.image_height <= 0:
+        raise ValueError("frame metadata must include positive image_width and image_height")
+    frame_width, frame_height = meta.image_width, meta.image_height
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    # Camera image coordinates: x right/east, y down/south. Rotate by heading.
-    east = (cx - width / 2) * meta.ground_sample_distance_m
-    north = (height / 2 - cy) * meta.ground_sample_distance_m
-    angle = np.deg2rad(meta.heading_deg)
-    rotated_east = east * np.cos(angle) + north * np.sin(angle)
-    rotated_north = -east * np.sin(angle) + north * np.cos(angle)
-    location = GeoPoint(
-        meta.location.lat + rotated_north / 111_000,
-        meta.location.lon + rotated_east / (111_000 * max(np.cos(np.deg2rad(meta.location.lat)), .1)),
-        meta.location.altitude_m,
-    )
+    from .geolocation import geolocate_pixel
+    location = geolocate_pixel(cx, cy, frame_width, frame_height, meta)
     return AerialDetection(f"{meta.frame_id}-{band.value}-{x0}-{y0}", location, label,
                            min(1.0, max(0.0, confidence)), band, meta.frame_id, evidence)
 
@@ -69,7 +77,7 @@ def detect_rgb(image: Any, meta: FrameMetadata) -> list[AerialDetection]:
     results = []
     for box in boxes[:8]:
         score = float(np.clip(.55 + contrast[box[1]:box[3] + 1, box[0]:box[2] + 1].mean(), .55, .94))
-        results.append(_detection(meta, box, DetectionBand.RGB, score, "possible person", "RGB contrast candidate"))
+        results.append(_detection(meta, box, DetectionBand.RGB, score, "RGB contrast candidate", "baseline anomaly; not a person classifier"))
     return results
 
 
@@ -85,7 +93,7 @@ def detect_thermal(image: Any, meta: FrameMetadata) -> list[AerialDetection]:
     boxes = _components(mask, minimum=max(6, array.size // 3000))
     return [_detection(meta, box, DetectionBand.THERMAL,
                        float(np.clip(.55 + (array[box[1]:box[3] + 1, box[0]:box[2] + 1].mean() - low) / spread * .35, .55, .98)),
-                       "possible heat source", "thermal hot-region candidate") for box in boxes[:8]]
+                       "thermal hot-region candidate", "baseline anomaly; not a person classifier") for box in boxes[:8]]
 
 
 def detect_multispectral(image: Any, meta: FrameMetadata) -> list[AerialDetection]:
@@ -98,11 +106,18 @@ def detect_multispectral(image: Any, meta: FrameMetadata) -> list[AerialDetectio
     threshold = max(float(np.quantile(anomaly, .985)), .25)
     boxes = _components(anomaly >= threshold, minimum=max(8, array.shape[0] * array.shape[1] // 2200))
     return [_detection(meta, box, DetectionBand.MULTISPECTRAL, .62,
-                       "human-made sign", "multispectral band-ratio anomaly") for box in boxes[:8]]
+                       "multispectral band-ratio anomaly", "baseline anomaly; not a person classifier") for box in boxes[:8]]
+
+
+def detect_change_with_report(previous: Any, current: Any, meta: FrameMetadata) -> tuple[list[AerialDetection], RegistrationReport]:
+    raw_mask, report = detect_registered_changes(np.asarray(previous), np.asarray(current), threshold=.18)
+    mask = refine_change_mask(raw_mask)
+    boxes = _components(mask, minimum=max(6, mask.size // 3000))
+    evidence = f"change candidate; registration={report.method}; score={report.score:.2f}"
+    return ([_detection(meta, box, DetectionBand.CHANGE, .68,
+                        "successive-pass change", evidence) for box in boxes[:8]], report)
 
 
 def detect_change(previous: Any, current: Any, meta: FrameMetadata) -> list[AerialDetection]:
-    mask = detect_changes(np.asarray(previous), np.asarray(current), threshold=.18)
-    boxes = _components(mask, minimum=max(6, mask.size // 3000))
-    return [_detection(meta, box, DetectionBand.RGB, .68,
-                       "new or moved human sign", "successive-pass change") for box in boxes[:8]]
+    detections, _ = detect_change_with_report(previous, current, meta)
+    return detections
