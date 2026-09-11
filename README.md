@@ -41,14 +41,22 @@ The deterministic demo needs no network connection, model download, database, or
 
 ## Live 3D dashboard
 
-Run the local, dependency-free mission viewer:
+Install the frontend dependencies once, then run the local Three.js mission viewer. Start the API in one terminal and Vite in another:
 
 ```bash
-python -m app.server
-# open http://127.0.0.1:8765
+python -m app.server                 # API: http://127.0.0.1:8765
+npm install
+npm run dev                          # UI: http://127.0.0.1:5173
 ```
 
-The browser scene is deterministic and offline. Its projected height-field terrain, route, search sectors, no-fly volume, drone altitude, camera cone, battery, coverage, detection alert, investigation diversion, and return-home leg all use one simulation clock. Use **Synthetic detection** to trigger the RGB + thermal investigation event, then **Export packet** to download the current waypoint packet as GeoJSON. The API at `/api/mission` exposes the planner route and the coordinate-system metadata used by the renderer.
+For a single-server production preview:
+
+```bash
+npm run build
+python -m app.server                 # serves the compiled UI at http://127.0.0.1:8765
+```
+
+The browser scene is deterministic and offline. Its real Three.js height-field terrain, authored drone and vegetation, route, search sectors, no-fly volume, drone altitude, camera frustum, battery, coverage, detection alert, investigation diversion, and return-home leg all use one simulation clock. Use **Simulate detection** to trigger the RGB + thermal investigation event, then **Export packet** to download the current waypoint packet as GeoJSON and CSV.
 
 ## Python API
 

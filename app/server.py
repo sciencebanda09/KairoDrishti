@@ -9,6 +9,7 @@ from pathlib import Path
 from engine.search_rescue import GeoPoint, SearchAndRescueMission, SearchCell, SearchMission
 
 ROOT = Path(__file__).parent
+STATIC_ROOT = ROOT / "dist" if (ROOT / "dist").exists() else ROOT / "static"
 
 
 def scenario() -> dict:
@@ -29,7 +30,13 @@ def scenario() -> dict:
                    "likelihood": c.likelihood, "terrain": c.terrain_score,
                    "visibility": c.visibility_score, "movement": c.movement_score}
                   for c in cells],
-        "waypoints": packet["waypoints"],
+        "waypoints": [
+            {**point, "altitude": next(
+                (cell.center.altitude_m for cell in cells if cell.cell_id == point.get("cell_id")),
+                home.altitude_m,
+            )}
+            for point in packet["waypoints"]
+        ],
         "no_fly": [{"id": "NFZ-A", "lat": 30.3665, "lon": 78.0835, "radius": 0.0007, "height": 70}],
         "truth": {"lat": 30.3668, "lon": 78.0852, "label": "POSSIBLE PERSON", "confidence": .84},
         "coordinate_system": "WGS84 → local equirectangular metres → scene metres",
@@ -56,7 +63,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run the offline KairoDrishti mission viewer")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
-    handler = lambda *a, **kw: Handler(*a, directory=str(ROOT / "static"), **kw)
+    handler = lambda *a, **kw: Handler(*a, directory=str(STATIC_ROOT), **kw)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
     print(f"KairoDrishti dashboard: http://127.0.0.1:{args.port}")
     try:

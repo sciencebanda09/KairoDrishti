@@ -16,6 +16,9 @@ env/
 .env.*
 !.env.example
 
+# Frontend dependencies
+node_modules/
+
 # Packaging/build output
 build/
 dist/
