@@ -1,4 +1,4 @@
-# KairoDrishti — Search & Rescue Aerial Intelligence
+# KairoDrishti Search & Rescue Aerial Intelligence
 
 KairoDrishti is an offline-first decision-support system for PS #8. It helps rescue teams search difficult terrain by converting aerial observations into ranked sectors, corroborated detections, and geolocated flight waypoints.
 
