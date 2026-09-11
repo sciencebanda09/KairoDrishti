@@ -1,12 +1,16 @@
 # Python bytecode and tooling
 __pycache__/
+test-results/
+playwright-report/
 *.py[cod]
 *$py.class
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+.hypothesis/
 
 # Virtual environments and local configuration
 .venv/
@@ -42,6 +46,8 @@ logs/
 *.jsonl
 *.npz
 *.npy
+*.hgt
+*.hgt.gz
 *.tif
 *.tiff
 *.geotiff
@@ -52,9 +58,24 @@ exports/
 outputs/
 tmp/
 temp/
+runs/
 datasets/
 frames/
+data/dem/
+data/satellite/
+data/imagery/
+data/cache/
+.kaggle_runtime/
+runs/kaggle/
+models/*.pt
+models/*.onnx
+models/*.engine
+models/*.safetensors
+models/*.pth
+models/*.ckpt
 *.zip
+*.tar
+*.tar.gz
 *.jpg
 *.jpeg
 *.png
