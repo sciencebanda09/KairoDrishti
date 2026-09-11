@@ -137,7 +137,7 @@ flowchart LR
 
 The system is offline-first: local detection, geospatial processing, tracking, prioritization, route planning, and field-packet export do not require connectivity. OpenStreetMap is an optional geographic context layer; the dashboard keeps a synthetic/offline map when tiles are unavailable. The planner is human-led decision support and produces rescue waypoints rather than controlling a real aircraft.
 
-[Open the standalone technical architecture diagram](docs/architecture.svg)
+[Open the compact technical architecture overview](docs/architecture-overview.svg)
 
 ## Quick start
 
