@@ -172,6 +172,44 @@ button:disabled { cursor: wait; opacity: .45; }
 @media (max-width: 1120px) { .right-rail .camera-card { flex-basis: 450px !important; min-height: 450px !important; }.camera-card .camera-content { height: 330px !important; min-height: 330px; } }
 @media (max-width: 700px) { .right-rail .camera-card { flex-basis: 390px !important; min-height: 390px !important; }.camera-card .camera-content { height: 270px !important; min-height: 270px; } }
 
+/* Keep the camera image clean; sensor identity remains in the panel header. */
+.camera-card #cameraBandOverlay { display: none !important; }
+.tracks-card .empty-state { align-items: flex-start; flex-direction: column; gap: 5px; justify-content: center; min-height: 84px; }
+.tracks-card .empty-state strong { color: #d7e7c8; font: 9px ui-monospace, monospace; letter-spacing: .06em; }
+.tracks-card .empty-state span:last-child { color: #849480; font-size: 9px; line-height: 1.35; }
+.detection-intelligence { flex: 0 0 auto; padding: 10px; border: 1px solid #46583e; background: #182319; }
+.detection-intelligence-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.detection-intelligence-head p { margin: 4px 0 0; color: #849480; font-size: 9px; line-height: 1.3; }
+.detection-intelligence-head > span { color: #b9d99b; font: 8px ui-monospace, monospace; white-space: nowrap; }
+.detection-category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 9px; }
+.detection-category { min-width: 0; padding: 6px 5px; border: 1px solid #354631; background: #202c20; }
+.detection-category.has-detection { border-color: #bd9a5b; background: #30291d; }
+.detection-category strong { display: block; color: #dce9d3; font: 700 16px ui-monospace, monospace; }
+.detection-category span, .detection-category small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detection-category span { margin-top: 2px; color: #b7c9ad; font: 8px ui-monospace, monospace; }
+.detection-category small { margin-top: 4px; color: #81927b; font: 7px ui-monospace, monospace; }
+.detection-category.has-detection small { color: #e0bd79; }
+.image-upload-button { padding: 6px 7px; border: 1px solid #77935c; background: #31462c; color: #dcebcf; font: 8px ui-monospace, monospace; }
+@media (max-width: 700px) { .detection-category-grid { gap: 3px; }.detection-category { padding-inline: 3px; }.detection-category strong { font-size: 14px; }.detection-category span { font-size: 7px; } }
+
+/* Primary operator layout: terrain and live camera stay together above the
+   mission intelligence so the aircraft view is always easy to find. */
+.workspace { display: flex; flex-direction: column; min-height: 0; overflow: auto; }
+.dashboard-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(390px, 43%); gap: 12px; min-height: 680px; height: calc(100vh - 224px); }
+.dashboard-top .viewport-panel { min-height: 0; height: 100%; }
+.camera-stage { min-width: 0; min-height: 0; display: flex; }
+.camera-stage .camera-card { width: 100%; height: 100%; min-height: 0 !important; flex: 1 1 auto !important; }
+.operations-grid { display: grid; grid-template-columns: minmax(300px, 1.2fr) repeat(3, minmax(220px, 1fr)); gap: 10px; align-items: start; margin-top: 12px; }
+.operations-grid > .rail-status, .operations-grid > .mission-story { grid-column: 1 / -1; }
+.operations-grid > .rail-status { min-height: 44px; }
+.operations-grid > .mission-card, .operations-grid > .swarm-card, .operations-grid > .tracks-card, .operations-grid > .detection-card { min-height: 250px; max-height: 440px; overflow: auto; }
+.operations-grid > .detection-intelligence { min-height: 0; }
+.operations-grid .mission-card { padding-bottom: 12px; }
+.operations-grid .swarm-card[hidden] { display: none; }
+.footer-bar { flex: 0 0 70px; margin-top: 12px; }
+@media (max-width: 1120px) { .dashboard-top { grid-template-columns: 1fr; height: auto; min-height: 0; }.dashboard-top .viewport-panel { min-height: 600px; height: 68vh; }.camera-stage { min-height: 450px; }.camera-stage .camera-card { min-height: 450px !important; }.operations-grid { grid-template-columns: repeat(2, minmax(260px, 1fr)); }.operations-grid > .rail-status, .operations-grid > .mission-story { grid-column: 1 / -1; } }
+@media (max-width: 700px) { .dashboard-top .viewport-panel { min-height: 540px; height: 68vh; }.camera-stage { min-height: 390px; }.camera-stage .camera-card { min-height: 390px !important; }.operations-grid { grid-template-columns: 1fr; }.operations-grid > .rail-status, .operations-grid > .mission-story { grid-column: auto; }.footer-bar { flex-basis: auto; } }
+
 /* Geographic context is a second, human-readable coordinate view. It stays
    independent from the synthetic 3D terrain so the console remains useful
    when OSM tiles cannot be reached in the field. */

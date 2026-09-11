@@ -93,6 +93,7 @@ def build_mission() -> SearchAndRescueMission:
 
 MISSION = build_mission()
 YOLO_DETECTOR = None
+CLOTHING_DETECTOR = None
 DEM = None
 PLANNER_MODE = "baseline"
 DETECTOR_MODE = "opencv"
@@ -209,11 +210,15 @@ def scenario() -> dict:
 
 
 def readiness() -> dict:
+    detectors = [detector for detector in (YOLO_DETECTOR, CLOTHING_DETECTOR)
+                 if detector is not None and detector.ready]
+    classes = sorted({label for detector in detectors for label in detector.class_names})
     return {"detector_mode": DETECTOR_MODE,
-            "model_loaded": bool(YOLO_DETECTOR and YOLO_DETECTOR.ready),
+            "model_loaded": bool(detectors),
             "model_path": str(YOLO_DETECTOR.model_path) if YOLO_DETECTOR else None,
-            "detector_classes": list(YOLO_DETECTOR.class_names) if YOLO_DETECTOR else list(TERRAIN_CLASSES),
-            "terrain_detector_ready": bool(YOLO_DETECTOR and YOLO_DETECTOR.terrain_ready),
+            "model_paths": [str(detector.model_path) for detector in detectors],
+            "detector_classes": classes or list(TERRAIN_CLASSES),
+            "terrain_detector_ready": all(label in classes for label in TERRAIN_CLASSES),
             "fallback_reason": DETECTOR_ERROR,
             "opencv_available": opencv_available(),
             "dem_loaded": DEM is not None, "planner_mode": PLANNER_MODE,
@@ -262,16 +267,23 @@ def load_dem_upload(raw: bytes, filename: str):
 
 
 def detect_rgb_frame(image: np.ndarray, metadata: FrameMetadata) -> list:
-    global YOLO_DETECTOR, DETECTOR_MODE, DETECTOR_ERROR
-    if YOLO_DETECTOR is not None:
+    global YOLO_DETECTOR, CLOTHING_DETECTOR, DETECTOR_MODE, DETECTOR_ERROR
+    detections = []
+    for name, detector in (("person/terrain", YOLO_DETECTOR), ("clothing", CLOTHING_DETECTOR)):
+        if detector is None:
+            continue
         try:
-            return YOLO_DETECTOR.detect(image, metadata)
+            detections.extend(detector.detect(image, metadata))
         except Exception as error:
-            DETECTOR_ERROR = f"YOLO inference failed: {error}"
+            DETECTOR_ERROR = f"YOLO {name} inference failed: {error}"
             if DETECTOR_MODE == "yolo_explicit":
                 raise RuntimeError(DETECTOR_ERROR) from error
-            YOLO_DETECTOR = None
-            DETECTOR_MODE = "opencv_fallback"
+            if name == "person/terrain":
+                YOLO_DETECTOR = None
+            else:
+                CLOTHING_DETECTOR = None
+    if detections:
+        return detections
     return detect_rgb(image, metadata)
 
 
@@ -512,10 +524,12 @@ def detection_json(detection) -> dict:
 
 
 def main() -> None:
-    global YOLO_DETECTOR, DEM, PLANNER_MODE, DETECTOR_MODE, DETECTOR_ERROR, OPENSKY
+    global YOLO_DETECTOR, CLOTHING_DETECTOR, DEM, PLANNER_MODE, DETECTOR_MODE, DETECTOR_ERROR, OPENSKY
     parser = argparse.ArgumentParser(description="Run the offline KairoDrishti mission viewer")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--yolo-model")
+    parser.add_argument("--clothing-model",
+                        help="optional YOLO checkpoint dedicated to clothing detections")
     parser.add_argument("--detector", choices=("auto", "yolo", "opencv"), default="auto")
     parser.add_argument("--dem")
     parser.add_argument("--device", default="auto")
@@ -523,7 +537,7 @@ def main() -> None:
                         help="enable optional cached OpenSky ADS-B airspace context")
     parser.add_argument("--opensky-cache", default="runs/cache/opensky.json")
     args = parser.parse_args()
-    if args.detector != "opencv":
+    if args.detector != "opencv" or args.clothing_model:
         candidates = [Path(args.yolo_model)] if args.yolo_model else [
             ROOT.parent / "models" / "kairodristi-terrain.pt",
             ROOT.parent / "models" / "kairodristi-llvip-person.pt",
@@ -542,6 +556,19 @@ def main() -> None:
                 YOLO_DETECTOR = None
                 if args.detector == "yolo" or args.yolo_model:
                     raise
+        if args.clothing_model:
+            clothing_candidate = Path(args.clothing_model)
+            if not clothing_candidate.exists():
+                raise FileNotFoundError(f"clothing checkpoint not found: {clothing_candidate}")
+            try:
+                CLOTHING_DETECTOR = YoloRgbDetector(
+                    clothing_candidate, device=args.device, allowed_classes=("clothing",))
+                CLOTHING_DETECTOR.load()
+                DETECTOR_MODE = "yolo_explicit"
+            except Exception as error:
+                DETECTOR_ERROR = f"clothing YOLO model unavailable: {error}"
+                CLOTHING_DETECTOR = None
+                raise
         if YOLO_DETECTOR is None and args.detector == "yolo":
             raise RuntimeError(DETECTOR_ERROR or "no YOLO model found")
     if args.dem:

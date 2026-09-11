@@ -28,8 +28,116 @@ RGB / thermal / multispectral frames
               ↓
  battery-aware coverage planning
               ↓
- geolocated field packet + RTH waypoint
+  geolocated field packet + RTH waypoint
 ```
+
+## Technical architecture
+
+```mermaid
+flowchart LR
+  subgraph INPUTS[Mission and sensor inputs]
+    RGB[Drone RGB imagery]
+    THERMAL[Drone thermal imagery]
+    MULTI[Multispectral imagery]
+    CHANGE[Successive passes]
+    SAT[Satellite context]
+    DEM[DEM / SRTM terrain]
+    OSM[Optional OpenStreetMap context]
+    OPERATOR[Last-known position / manual coordinates]
+  end
+
+  subgraph API[Offline local API and ingestion]
+    SERVER[Python local HTTP API\napp/server.py]
+    INGEST[Image, raster, metadata and CRS ingestion\nengine/search_rescue/geospatial.py]
+    VISION[Decode and RGB preparation\nNumPy / OpenCV]
+  end
+
+  subgraph CV[Computer vision and detection]
+    PERSON[Person / terrain YOLO checkpoint\nperson, shelter, track]
+    CLOTHING[Clothing YOLO checkpoint\nclothing]
+    BASELINE[OpenCV fallback\ncontrast / anomaly cues]
+    THERMALDET[Thermal hot-region detector]
+    MULTIDET[Multispectral band-ratio detector]
+    CHANGEDET[Registered change detector\nORB / RANSAC / change mask]
+  end
+
+  subgraph INTELLIGENCE[Detection intelligence]
+    FUSION[Cross-band fusion\nconfidence and evidence]
+    TRACK[Nearest-decay or IMM tracking\ntrack IDs / repeated sightings]
+    TAXONOMY[Human-sign taxonomy\nperson · clothing · shelter · track]
+  end
+
+  subgraph PLANNING[Search intelligence and route planning]
+    PRIORITY[Search-cell prioritization\nLKP · movement · terrain · visibility · coverage]
+    ROUTE[Battery-aware coverage planning\nA* detours · DEM clearance · RTH reserve]
+    AIRSPACE[No-fly and airspace checks]
+    SWARM[Swarm sector assignment\ncoverage · separation · replanning]
+  end
+
+  subgraph UI[Operator dashboard]
+    THREE[Three.js terrain and route view]
+    LEAFLET[Leaflet geographic map\nOSM online / offline fallback]
+    CAMERA[Live drone camera\nRGB · thermal · multispectral · change]
+    QUEUE[Human-sign counters and Candidate Queue]
+    TRACKS[Tracks and Swarm Control]
+    COORD[Coordinate marker and investigation flow]
+  end
+
+  subgraph OUTPUTS[Field outputs]
+    WAYPOINTS[Geolocated investigation and search waypoints]
+    PACKET[Field packet export\nGeoJSON · CSV · KML · GPX]
+    GROUND[Ground-team rescue coordinate]
+  end
+
+  RGB --> SERVER
+  THERMAL --> SERVER
+  MULTI --> SERVER
+  CHANGE --> SERVER
+  SAT --> SERVER
+  DEM --> SERVER
+  OSM -. optional context .-> LEAFLET
+  OPERATOR --> SERVER
+  SERVER --> INGEST --> VISION
+  VISION --> PERSON
+  VISION --> CLOTHING
+  VISION --> BASELINE
+  VISION --> THERMALDET
+  VISION --> MULTIDET
+  CHANGE --> CHANGEDET
+  PERSON --> FUSION
+  CLOTHING --> FUSION
+  BASELINE --> FUSION
+  THERMALDET --> FUSION
+  MULTIDET --> FUSION
+  CHANGEDET --> FUSION
+  FUSION --> TAXONOMY --> TRACK
+  TRACK --> PRIORITY
+  OPERATOR --> PRIORITY
+  DEM --> PRIORITY
+  SAT --> PRIORITY
+  PRIORITY --> ROUTE
+  AIRSPACE --> ROUTE
+  ROUTE --> SWARM
+  TRACK --> ROUTE
+  ROUTE --> THREE
+  ROUTE --> LEAFLET
+  SWARM --> THREE
+  SWARM --> LEAFLET
+  VISION --> CAMERA
+  TAXONOMY --> QUEUE
+  TRACK --> TRACKS
+  FUSION --> QUEUE
+  QUEUE --> COORD
+  COORD --> WAYPOINTS
+  ROUTE --> WAYPOINTS
+  WAYPOINTS --> PACKET --> GROUND
+  THREE --> COORD
+  LEAFLET --> COORD
+```
+
+The system is offline-first: local detection, geospatial processing, tracking, prioritization, route planning, and field-packet export do not require connectivity. OpenStreetMap is an optional geographic context layer; the dashboard keeps a synthetic/offline map when tiles are unavailable. The planner is human-led decision support and produces rescue waypoints rather than controlling a real aircraft.
+
+[Open the standalone technical architecture diagram](docs/architecture.svg)
 
 ## Quick start
 
@@ -90,6 +198,16 @@ Ultralytics is included in `requirements.txt`. Use the supplied trained checkpoi
 python -m app.server `
   --detector yolo `
   --yolo-model .\datasets\weights\best.pt `
+  --device cpu
+```
+
+To run the person/terrain checkpoint together with a separate clothing checkpoint, pass both models. RGB uploads are analyzed by both local detectors and their detections are merged into the mission queue:
+
+```powershell
+py -3.11 -m app.server `
+  --detector yolo `
+  --yolo-model .\datasets\weights\best.pt `
+  --clothing-model C:\Users\kumar\Downloads\best.pt `
   --device cpu
 ```
 

@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1120" viewBox="0 0 1800 1120" role="img" aria-labelledby="title desc">
+  <title id="title">KairoDrishti technical architecture</title>
+  <desc id="desc">Offline aerial search and rescue intelligence pipeline from sensor inputs through computer vision, detection fusion, search planning and field waypoints.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b120d"/><stop offset="1" stop-color="#101b13"/></linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d2d20"/><stop offset="1" stop-color="#142118"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity=".28"/></filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#b9dda0"/></marker>
+    <marker id="arrowAmber" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#e6c47f"/></marker>
+    <style>
+      .title{font:700 31px Arial,sans-serif;letter-spacing:3px;fill:#dcebd5}.subtitle{font:16px Arial,sans-serif;fill:#9cae97}.kicker{font:700 12px Arial,sans-serif;letter-spacing:2px;fill:#9ec7ef}.head{font:700 15px Arial,sans-serif;letter-spacing:1px;fill:#dcebd5}.body{font:14px Arial,sans-serif;fill:#c2d0bc}.small{font:12px Arial,sans-serif;fill:#9cae97}.tag{font:700 11px Arial,sans-serif;letter-spacing:1px;fill:#0b120d}.arrow{fill:none;stroke:#b9dda0;stroke-width:2.5;marker-end:url(#arrow)}.optional{fill:none;stroke:#9cae97;stroke-width:2;stroke-dasharray:7 6;marker-end:url(#arrow)}.action{fill:none;stroke:#e6c47f;stroke-width:2.5;marker-end:url(#arrowAmber)}
+    </style>
+  </defs>
+  <rect width="1800" height="1120" fill="url(#bg)"/>
+  <rect x="26" y="24" width="1748" height="1072" rx="20" fill="none" stroke="#304632"/>
+  <text x="60" y="78" class="kicker">KAIRODRISHTI / PS #8 SEARCH AND RESCUE</text>
+  <text x="60" y="120" class="title">TECHNICAL APPROACH</text>
+  <text x="60" y="150" class="subtitle">Offline aerial intelligence pipeline · imagery → evidence → search plan → field waypoint</text>
+
+  <g filter="url(#shadow)">
+    <rect x="55" y="205" width="190" height="570" rx="14" fill="url(#panel)" stroke="#6f8f5c"/>
+    <rect x="275" y="205" width="205" height="570" rx="14" fill="url(#panel)" stroke="#6f8f5c"/>
+    <rect x="510" y="205" width="235" height="570" rx="14" fill="url(#panel)" stroke="#6f8f5c"/>
+    <rect x="775" y="205" width="220" height="570" rx="14" fill="url(#panel)" stroke="#6f8f5c"/>
+    <rect x="1025" y="205" width="220" height="570" rx="14" fill="url(#panel)" stroke="#6f8f5c"/>
+    <rect x="1275" y="205" width="220" height="570" rx="14" fill="url(#panel)" stroke="#6f8f5c"/>
+    <rect x="1525" y="205" width="220" height="570" rx="14" fill="url(#panel)" stroke="#6f8f5c"/>
+  </g>
+
+  <g>
+    <rect x="75" y="225" width="150" height="24" rx="12" fill="#b9dda0"/><text x="150" y="242" text-anchor="middle" class="tag">01 · INPUTS</text>
+    <text x="75" y="282" class="head">Mission + sensors</text>
+    <text x="75" y="316" class="body"><tspan x="75" dy="0">RGB drone frames</tspan><tspan x="75" dy="25">Thermal imagery</tspan><tspan x="75" dy="25">Multispectral bands</tspan><tspan x="75" dy="25">Satellite imagery</tspan><tspan x="75" dy="25">Successive passes</tspan><tspan x="75" dy="25">DEM / SRTM terrain</tspan><tspan x="75" dy="25">Last known position</tspan><tspan x="75" dy="25">Manual coordinates</tspan></text>
+    <text x="75" y="575" class="small">Optional map context</text><text x="75" y="598" class="body">OSM tiles + offline map fallback</text>
+    <rect x="75" y="655" width="150" height="76" rx="8" fill="#263c29" stroke="#6f8f5c"/><text x="87" y="680" class="small">FIELD REALITY</text><text x="87" y="704" class="body">No connectivity required</text><text x="87" y="723" class="small">when cached/local data exists</text>
+
+    <rect x="295" y="225" width="165" height="24" rx="12" fill="#b9dda0"/><text x="377" y="242" text-anchor="middle" class="tag">02 · INGESTION</text>
+    <text x="295" y="282" class="head">Local API</text><text x="295" y="316" class="body"><tspan x="295" dy="0">app/server.py</tspan><tspan x="295" dy="25">Frame decode + resize</tspan><tspan x="295" dy="25">GeoJSON / coordinate</tspan><tspan x="295" dy="25">normalisation</tspan><tspan x="295" dy="42">POST /api/frames/detect</tspan><tspan x="295" dy="25">POST /api/change-detection</tspan><tspan x="295" dy="25">GET /api/mission</tspan></text>
+    <rect x="295" y="590" width="165" height="92" rx="8" fill="#263c29" stroke="#6f8f5c"/><text x="307" y="615" class="small">RUNTIME</text><text x="307" y="639" class="body">Python + NumPy</text><text x="307" y="660" class="body">OpenCV + local files</text>
+
+    <rect x="530" y="225" width="195" height="24" rx="12" fill="#e78068"/><text x="627" y="242" text-anchor="middle" class="tag">03 · COMPUTER VISION</text>
+    <text x="530" y="282" class="head">Parallel detectors</text><text x="530" y="316" class="body"><tspan x="530" dy="0">YOLO · person / terrain</tspan><tspan x="530" dy="25">YOLO · clothing model</tspan><tspan x="530" dy="25">OpenCV fallback</tspan><tspan x="530" dy="25">Thermal detector</tspan><tspan x="530" dy="25">Multispectral detector</tspan><tspan x="530" dy="25">Change detector</tspan></text>
+    <rect x="530" y="530" width="195" height="112" rx="8" fill="#3b2925" stroke="#e78068"/><text x="542" y="555" class="small">EVIDENCE TYPES</text><text x="542" y="579" class="body">person · clothing</text><text x="542" y="601" class="body">shelter · track</text><text x="542" y="623" class="small">confidence + pixel geometry</text>
+    <text x="530" y="696" class="small">Models remain swappable</text><text x="530" y="718" class="small">and can run without cloud inference</text>
+
+    <rect x="795" y="225" width="180" height="24" rx="12" fill="#b9dda0"/><text x="885" y="242" text-anchor="middle" class="tag">04 · INTELLIGENCE</text>
+    <text x="795" y="282" class="head">Fuse + track</text><text x="795" y="316" class="body"><tspan x="795" dy="0">Cross-band evidence</tspan><tspan x="795" dy="25">Human-sign taxonomy</tspan><tspan x="795" dy="25">Confidence scoring</tspan><tspan x="795" dy="25">Nearest-decay tracks</tspan><tspan x="795" dy="25">IMM-style motion</tspan><tspan x="795" dy="42">Candidate queue</tspan></text>
+    <rect x="795" y="540" width="180" height="92" rx="8" fill="#263c29" stroke="#6f8f5c"/><text x="807" y="565" class="small">OPERATOR SIGNAL</text><text x="807" y="589" class="body">PEOPLE / CLOTHING</text><text x="807" y="611" class="body">SHELTERS / TRACKS</text>
+
+    <rect x="1045" y="225" width="180" height="24" rx="12" fill="#e6c47f"/><text x="1135" y="242" text-anchor="middle" class="tag">05 · PRIORITISE</text>
+    <text x="1045" y="282" class="head">Search intelligence</text><text x="1045" y="316" class="body"><tspan x="1045" dy="0">Last known position</tspan><tspan x="1045" dy="25">Movement model</tspan><tspan x="1045" dy="25">Terrain + visibility</tspan><tspan x="1045" dy="25">Detection recency</tspan><tspan x="1045" dy="25">Likelihood heatmap</tspan><tspan x="1045" dy="25">Priority cells</tspan></text>
+    <rect x="1045" y="550" width="180" height="88" rx="8" fill="#3b3425" stroke="#e6c47f"/><text x="1057" y="575" class="small">DECISION</text><text x="1057" y="599" class="body">Where should the</text><text x="1057" y="620" class="body">next scan happen?</text>
+
+    <rect x="1295" y="225" width="180" height="24" rx="12" fill="#e6c47f"/><text x="1385" y="242" text-anchor="middle" class="tag">06 · PLAN + FLY</text>
+    <text x="1295" y="282" class="head">Route + swarm</text><text x="1295" y="316" class="body"><tspan x="1295" dy="0">Coverage planner</tspan><tspan x="1295" dy="25">Battery + RTH reserve</tspan><tspan x="1295" dy="25">A* terrain detours</tspan><tspan x="1295" dy="25">No-fly / airspace</tspan><tspan x="1295" dy="25">Sector assignment</tspan><tspan x="1295" dy="25">Separation + replan</tspan></text>
+    <rect x="1295" y="550" width="180" height="88" rx="8" fill="#3b3425" stroke="#e6c47f"/><text x="1307" y="575" class="small">MISSION COMMAND</text><text x="1307" y="599" class="body">Search next priority</text><text x="1307" y="620" class="body">with safe waypoints</text>
+
+    <rect x="1545" y="225" width="180" height="24" rx="12" fill="#9ec7ef"/><text x="1635" y="242" text-anchor="middle" class="tag">07 · DASHBOARD</text>
+    <text x="1545" y="282" class="head">Operator view</text><text x="1545" y="316" class="body"><tspan x="1545" dy="0">Three.js terrain view</tspan><tspan x="1545" dy="25">Leaflet geographic map</tspan><tspan x="1545" dy="25">Live drone camera</tspan><tspan x="1545" dy="25">Detection counters</tspan><tspan x="1545" dy="25">Candidate queue</tspan><tspan x="1545" dy="25">Tracks + swarm control</tspan><tspan x="1545" dy="25">Investigate action</tspan></text>
+    <rect x="1545" y="590" width="180" height="82" rx="8" fill="#273541" stroke="#9ec7ef"/><text x="1557" y="615" class="small">CLEAR OUTCOME</text><text x="1557" y="639" class="body">Cue → coordinate →</text><text x="1557" y="660" class="body">rescue waypoint</text>
+  </g>
+
+  <g>
+    <path d="M245 490H275" class="arrow"/><path d="M480 490H510" class="arrow"/><path d="M745 490H775" class="arrow"/><path d="M995 490H1025" class="arrow"/><path d="M1245 490H1275" class="action"/><path d="M1495 490H1525" class="action"/>
+    <path d="M627 775V830H1135V775" class="optional"/><text x="850" y="852" text-anchor="middle" class="small">feedback loop: new imagery, change detection, track updates and replanning</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="55" y="900" width="1690" height="135" rx="14" fill="#17251a" stroke="#6f8f5c"/>
+  </g>
+  <text x="80" y="935" class="kicker">08 · FIELD OUTPUTS</text>
+  <text x="80" y="975" class="head">Geolocated action, not an image gallery</text>
+  <text x="80" y="1003" class="body">Investigation waypoint + latitude/longitude · prioritised search route · GeoJSON / CSV / KML / GPX packet · ground-team handoff</text>
+  <path d="M1080 1030H1665" class="action"/>
+  <text x="1080" y="1010" class="small">POST /api/mission/export</text><text x="1395" y="1010" class="small">→ rescue team receives coordinates</text>
+
+  <g transform="translate(80 1068)"><line x1="0" y1="0" x2="45" y2="0" class="arrow"/><text x="58" y="5" class="small">data flow</text><line x1="150" y1="0" x2="195" y2="0" class="action"/><text x="208" y="5" class="small">operator action / mission control</text><line x1="440" y1="0" x2="485" y2="0" class="optional"/><text x="498" y="5" class="small">optional input or feedback</text></g>
+</svg>
