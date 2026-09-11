@@ -1,0 +1,8 @@
+numpy>=1.24
+scipy>=1.10
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pyyaml>=6.0
+msgpack>=1.0.5
+pyserial>=3.5
+rich>=13.0
