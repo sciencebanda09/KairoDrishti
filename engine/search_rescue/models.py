@@ -12,6 +12,14 @@ class DetectionBand(str, Enum):
     CHANGE = "change"
 
 
+class DroneStatus(str, Enum):
+    SEARCHING = "searching"
+    INVESTIGATING = "investigating"
+    RETURNING = "returning"
+    OFFLINE = "offline"
+    IDLE = "idle"
+
+
 class WaypointKind(str, Enum):
     SEARCH = "search"
     INVESTIGATE = "investigate"
@@ -36,6 +44,7 @@ class AerialDetection:
     evidence: str = ""
     investigated: bool = False
     related_locations: tuple[GeoPoint, ...] = ()
+    track_id: str | None = None
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:
@@ -58,6 +67,7 @@ class SearchCell:
     dem_slope_score: float | None = None
     vegetation_index: float | None = None
     satellite_context_score: float | None = None
+    required_sensor_bands: set[DetectionBand] = field(default_factory=set)
 
 
 @dataclass
@@ -80,3 +90,28 @@ class SearchWaypoint:
     cell_id: Optional[str] = None
     dwell_seconds: int = 0
     rationale: str = ""
+
+
+@dataclass
+class Drone:
+    """A simulated aircraft state used for planning and replay only."""
+
+    drone_id: str
+    position: GeoPoint
+    velocity: tuple[float, float] = (0.0, 0.0)
+    battery_percent: float = 100.0
+    status: DroneStatus = DroneStatus.IDLE
+    sensor_bands: set[DetectionBand] = field(
+        default_factory=lambda: {DetectionBand.RGB, DetectionBand.THERMAL}
+    )
+    assigned_sector_id: str | None = None
+    communication_ok: bool = True
+
+
+@dataclass
+class SwarmMission:
+    """Coordinated multi-drone mission state; never a real aircraft controller."""
+
+    mission: SearchMission
+    drones: list[Drone]
+    sector_assignments: dict[str, str] = field(default_factory=dict)

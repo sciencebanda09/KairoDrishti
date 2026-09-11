@@ -80,7 +80,13 @@ class ElevationGrid:
 
     def sample(self, lat: float, lon: float) -> float:
         if not self.south <= lat <= self.north or not self.west <= lon <= self.east:
-            raise ValueError("coordinate is outside DEM bounds")
+            if self.source != "geotiff":
+                raise ValueError("coordinate is outside DEM bounds")
+            # Rasterio-compatible direct sampling clamps a GeoTIFF query to
+            # its edge pixels.  Feature extraction still rejects out-of-tile
+            # cells below so mission ranking never invents terrain coverage.
+            lat = float(np.clip(lat, self.south, self.north))
+            lon = float(np.clip(lon, self.west, self.east))
         x, y = self._world_to_pixel(lat, lon)
         if x < -1 or y < -1 or x > self.elevations.shape[1] or y > self.elevations.shape[0]:
             raise ValueError("coordinate is outside DEM raster")
@@ -115,6 +121,10 @@ class ElevationGrid:
         return float(np.degrees(np.arctan(np.hypot(dz_dx, dz_dy))))
 
     def cell_features(self, lat: float, lon: float) -> dict[str, float]:
+        if self.source == "geotiff" and (
+            not self.south <= lat <= self.north or not self.west <= lon <= self.east
+        ):
+            raise ValueError("coordinate is outside DEM bounds")
         elevation = self.sample(lat, lon)
         slope = self.slope_degrees(lat, lon)
         return {"elevation_m": round(elevation, 2), "slope_deg": round(slope, 2),
