@@ -18,6 +18,7 @@ env/
 
 # Frontend dependencies
 node_modules/
+.vite/
 
 # Packaging/build output
 build/
@@ -51,3 +52,11 @@ exports/
 outputs/
 tmp/
 temp/
+datasets/
+frames/
+*.zip
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.mp4
