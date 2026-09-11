@@ -161,6 +161,30 @@ Swarm mode assigns separate sectors to each aircraft and shows ownership, route 
 
 ![KairoDrishti swarm search](docs/screenshots/swarm-search.png)
 
+## Evaluation mapping
+
+| Criterion | What to show in KairoDrishti |
+| --- | --- |
+| Innovation and originality | Human-sign intelligence for people, clothing, shelters, and tracks; repeated-sighting tracks; successive-pass change detection; adaptive search replanning. |
+| Functionality and usability | Upload an image, review the candidate queue, see the coordinate on the map, investigate it, and export a field packet. |
+| Technical complexity | Dual YOLO detectors, thermal and multispectral paths, confidence/evidence fusion, nearest-decay tracking, terrain-aware A* routing, battery reserve, airspace, and swarm sectors. |
+| User experience and design | Mission story, live camera, ranked sectors, human-sign counters, candidate status, decision trace, geographic context, and clear next actions. |
+| Quality of presentation | Compact architecture overview, annotated dashboard screenshots, offline-first explanation, and a repeatable detection-to-waypoint demo. |
+
+## Judging demo
+
+Use this sequence to tell the complete PS #8 story in under five minutes:
+
+1. Start the local API and open the dashboard. Point out the ranked sectors, live drone camera, and offline status.
+2. Start the mission and explain that the planner is scanning the highest-likelihood area using location, movement, terrain, and prior coverage.
+3. Upload an RGB aerial image with the person and clothing YOLO models enabled.
+4. Show the human-sign counters and candidate queue. Explain that a cue is evidence for investigation, not automatic confirmation of a survivor.
+5. Select the candidate and show the latitude/longitude on the geographic map and the `MISSION EVIDENCE` decision trace.
+6. Use `INVESTIGATE COORDINATE` to create the geolocated search action, then export GeoJSON or GPX for the ground team.
+7. Demonstrate one differentiator: switch to thermal or multispectral analysis, compare two passes with change detection, or initialize swarm mode to show non-overlapping sector ownership.
+
+The aircraft and camera movement are deterministic planning/replay visuals for the dashboard demo. KairoDrishti produces human-reviewed search decisions and field waypoints; it does not directly control or launch a real aircraft.
+
 ## Quick start
 
 ```bash
