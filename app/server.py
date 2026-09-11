@@ -14,8 +14,10 @@ from urllib.parse import parse_qs, urlsplit
 
 import numpy as np
 
-from engine.search_rescue import (FrameMetadata, GeoPoint, SearchAndRescueMission,
-                                  SearchCell, SearchMission, detect_change,
+from engine.search_rescue import (AerialDetection, DetectionBand, Drone, DroneStatus,
+                                  FrameMetadata, GeoPoint, SearchAndRescueMission,
+                                  SearchCell, SearchMission, SwarmMission,
+                                  SwarmSearchAndRescueMission, detect_change,
                                   detect_multispectral, detect_rgb, detect_thermal,
                                   load_dem, YoloRgbDetector)
 from engine.search_rescue.detectors import detect_change_with_report
@@ -24,6 +26,7 @@ from engine.search_rescue.exports import export_packet
 from engine.search_rescue.geospatial import ingest_frame, metadata_json
 from engine.search_rescue.satellite import build_satellite_context
 from engine.search_rescue.vision import decode_array as decode_vision_array, opencv_available
+from engine.search_rescue.mission import SIMULATION_PLANNING_FRAMING
 from app.airspace import OpenSkyCache
 
 ROOT = Path(__file__).parent
@@ -96,6 +99,78 @@ DETECTOR_MODE = "opencv"
 DETECTOR_ERROR = None
 OPENSKY = OpenSkyCache()
 SATELLITE_CONTEXT = None
+SWARM_MISSION: SwarmSearchAndRescueMission | None = None
+DEFAULT_NO_FLY = [{"id": "NFZ-A", "lat": 30.3665, "lon": 78.0835,
+                   "radius": 0.0007, "height": 70}]
+
+
+def _swarm_payload(payload: dict | None = None) -> SwarmSearchAndRescueMission:
+    """Build a deterministic simulated swarm from optional JSON input."""
+    payload = payload or {}
+    base = build_mission().mission
+    mission_id = str(payload.get("mission_id", base.mission_id))
+    cells = base.cells
+    if payload.get("cells"):
+        cells = []
+        for item in payload["cells"]:
+            bands = {DetectionBand(str(value).lower())
+                     for value in item.get("required_sensor_bands", [])}
+            cells.append(SearchCell(
+                str(item.get("cell_id", item.get("id"))),
+                GeoPoint(float(item["lat"]), float(item["lon"]),
+                         float(item.get("altitude", item.get("altitude_m", 0)))),
+                float(item.get("area_m2", 25_000)),
+                float(item.get("terrain_score", .5)),
+                float(item.get("visibility_score", .5)),
+                float(item.get("covered_fraction", 0.0)),
+                float(item.get("movement_score", .5)),
+                required_sensor_bands=bands,
+            ))
+    drone_payload = payload.get("drones")
+    if drone_payload is None:
+        count = max(1, int(payload.get("drone_count", 4)))
+        default_batteries = [72.0, 64.0, 81.0, 22.0]
+        drone_payload = [{
+            "drone_id": f"DRONE-{index + 1:02d}",
+            "lat": base.last_known_position.lat + (index - (count - 1) / 2) * .00015,
+            "lon": base.last_known_position.lon + (index - (count - 1) / 2) * .00012,
+            "altitude": base.last_known_position.altitude_m,
+            "battery_percent": default_batteries[index] if index < len(default_batteries) else 70.0,
+            "status": "searching",
+            "sensor_bands": ["rgb", "thermal"],
+        } for index in range(count)]
+    drones = []
+    for index, item in enumerate(drone_payload):
+        bands = {DetectionBand(str(value).lower()) for value in item.get("sensor_bands", ["rgb", "thermal"])}
+        status = DroneStatus(str(item.get("status", "searching")).lower())
+        drones.append(Drone(
+            str(item.get("drone_id", f"DRONE-{index + 1:02d}")),
+            GeoPoint(float(item.get("lat", base.last_known_position.lat)),
+                     float(item.get("lon", base.last_known_position.lon)),
+                     float(item.get("altitude", item.get("altitude_m", base.last_known_position.altitude_m)))),
+            tuple(item.get("velocity", (0.0, 0.0))),
+            float(item.get("battery_percent", 100.0)), status, bands,
+            item.get("assigned_sector_id"), bool(item.get("communication_ok", True)),
+        ))
+    return SwarmSearchAndRescueMission(SwarmMission(
+        SearchMission(mission_id, base.last_known_position, cells,
+                      battery_minutes=float(payload.get("battery_minutes", base.battery_minutes)),
+                      airspace_polygon=base.airspace_polygon),
+        drones,
+    ))
+
+
+def swarm_scenario() -> dict:
+    if SWARM_MISSION is None:
+        return {"mission_id": None, "offline": True, "mode": "swarm",
+                "initialized": False, "simulation_only": True,
+                "planning_only": True, "framing": SIMULATION_PLANNING_FRAMING,
+                "drones": [], "sectors": [], "detections": [], "waypoints": {},
+                "swarm_coverage_fraction": 0.0, "no_fly": DEFAULT_NO_FLY}
+    payload = SWARM_MISSION.field_packet()
+    payload["initialized"] = True
+    payload["no_fly"] = DEFAULT_NO_FLY
+    return payload
 
 
 def scenario() -> dict:
@@ -110,6 +185,9 @@ def scenario() -> dict:
         "battery_percent": packet["battery_percent"],
         "coverage_fraction": packet["coverage_fraction"],
         "route_version": packet["route_version"],
+        "tracking_mode": packet["tracking_mode"],
+        "tracks": packet["tracks"],
+        "framing": packet["framing"],
         "cells": [{"id": c.cell_id, "lat": c.center.lat, "lon": c.center.lon,
                    "altitude": c.center.altitude_m, "priority": c.priority,
                    "likelihood": c.likelihood, "terrain": c.terrain_score,
@@ -217,6 +295,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlsplit(self.path)
+        if parsed.path == "/api/swarm":
+            self._json(swarm_scenario())
+            return
         if parsed.path == "/api/mission":
             self._json(scenario())
             return
@@ -246,8 +327,62 @@ class Handler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:  # noqa: N802
-        global MISSION, SATELLITE_CONTEXT, DEM, PLANNER_MODE
+        global MISSION, SATELLITE_CONTEXT, DEM, PLANNER_MODE, SWARM_MISSION
         try:
+            if self.path == "/api/swarm/init":
+                length = int(self.headers.get("content-length", "0"))
+                payload = json.loads(self.rfile.read(length) or b"{}")
+                SWARM_MISSION = _swarm_payload(payload)
+                if DEM is not None:
+                    SWARM_MISSION.configure_terrain(DEM)
+                if SATELLITE_CONTEXT is not None:
+                    SWARM_MISSION.configure_satellite_context(SATELLITE_CONTEXT)
+                self._json(swarm_scenario())
+                return
+            if self.path == "/api/swarm/telemetry":
+                if SWARM_MISSION is None:
+                    self._json({"error": "swarm is not initialized", "offline": True,
+                                "mode": "swarm", "simulation_only": True,
+                                "planning_only": True, "framing": SIMULATION_PLANNING_FRAMING}, 409)
+                    return
+                length = int(self.headers.get("content-length", "0"))
+                payload = json.loads(self.rfile.read(length) or b"{}")
+                updates = payload.get("drones", [])
+                if not updates and payload.get("drone_id"):
+                    updates = [payload]
+                for update in updates:
+                    current = next(drone for drone in SWARM_MISSION.drones
+                                   if drone.drone_id == str(update["drone_id"]))
+                    SWARM_MISSION.update_drone_telemetry(
+                        current.drone_id,
+                        GeoPoint(float(update.get("lat", current.position.lat)),
+                                 float(update.get("lon", current.position.lon)),
+                                 float(update.get("altitude", current.position.altitude_m))),
+                        float(update.get("battery_percent", current.battery_percent)),
+                        update.get("status", current.status.value),
+                        bool(update.get("communication_ok", current.communication_ok)),
+                    )
+                if payload.get("detections"):
+                    detections = []
+                    for item in payload["detections"]:
+                        detections.append(AerialDetection(
+                            str(item.get("id", item.get("detection_id", "swarm-pass"))),
+                            GeoPoint(float(item["lat"]), float(item["lon"]),
+                                     float(item.get("altitude", item.get("altitude_m", 0)))),
+                            str(item.get("label", "candidate")),
+                            float(item.get("confidence", .7)),
+                            DetectionBand(str(item.get("band", "rgb")).lower()),
+                            str(item.get("source_frame", "swarm-pass")),
+                            str(item.get("evidence", "simulated pass")),
+                        ))
+                    SWARM_MISSION.ingest_detections(detections)
+                SWARM_MISSION.replan()
+                self._json(swarm_scenario())
+                return
+            if self.path == "/api/swarm/reset":
+                SWARM_MISSION = None
+                self._json(swarm_scenario())
+                return
             if self.path == "/api/mission/telemetry":
                 length = int(self.headers.get("content-length", "0"))
                 payload = json.loads(self.rfile.read(length))
@@ -357,7 +492,12 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             self._json({"error": "unknown endpoint"}, 404)
         except (KeyError, ValueError, OSError, RuntimeError, TypeError, zipfile.BadZipFile) as error:
-            self._json({"error": str(error)}, 400)
+            if self.path.startswith("/api/swarm"):
+                self._json({"error": str(error), "offline": True, "mode": "swarm",
+                            "simulation_only": True, "planning_only": True,
+                            "framing": SIMULATION_PLANNING_FRAMING}, 400)
+            else:
+                self._json({"error": str(error)}, 400)
 
     def log_message(self, fmt: str, *args: object) -> None:
         return
@@ -368,7 +508,7 @@ def detection_json(detection) -> dict:
             "altitude": detection.location.altitude_m,
             "confidence": round(detection.confidence, 3), "label": detection.label,
             "band": detection.band.value, "evidence": detection.evidence, "source_frame": detection.source_frame,
-            "investigated": detection.investigated}
+            "track_id": detection.track_id, "investigated": detection.investigated}
 
 
 def main() -> None:
