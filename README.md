@@ -181,6 +181,51 @@ GET  /api/mission/export?format=geojson|csv|kml|gpx
 GET  /api/airspace
 ```
 
+### Swarm mode
+
+Swarm mode is available through `POST /api/swarm/init`, `POST
+/api/swarm/telemetry`, `GET /api/swarm`, and `POST /api/swarm/reset`. Packets
+include per-drone telemetry, sector ownership, battery-aware routes, candidate
+tracks, and aggregate coverage. The response is labelled **SIMULATION /
+PLANNING ONLY**.
+
+KairoDrishti is a multi-drone search planning and field intelligence system. It
+plans and simulates coordinated multi-drone search and candidate tracking. It
+does not autonomously control or launch real aircraft, and it does not claim
+sensor-fused ground truth. A candidate or track remains an investigation cue,
+never confirmation of a survivor.
+
+When there are more aircraft than sectors, the best-battery unassigned aircraft
+is held as the reserve. The reserve exists for candidate investigation and
+failure recovery, not because it is the weakest asset. Offline or
+disconnected aircraft are excluded and their sectors are reassigned among
+healthy simulated aircraft.
+
+### Flocking
+
+The frontend applies the pure `flocking.py` motion layer while simulated drones
+move between their Phase 1 waypoints. Separation, alignment, and cohesion
+govern local in-flight spacing; goal-seeking has dominant weight so flocking
+adjusts spacing without abandoning an assigned sector. No-fly boundaries clamp
+simulated velocity components before a marker can enter the restricted area.
+
+### Tracking
+
+Candidate association always runs Mahalanobis gating using the 95% chi-square
+threshold for two position degrees of freedom. This is the mandatory identity
+gate for repeated passes and multi-band observations; it is independent of the
+motion estimator.
+
+`TRACKING_MODE` supports `nearest_decay` and `imm`. The default is
+`nearest_decay`: it keeps the last matched observation, decays confidence
+exponentially with elapsed time, and is the safer always-correct fallback for
+an offline planning console. `imm` provides constant-velocity and
+constant-turn-rate Kalman models through an interacting multiple model filter
+for higher-fidelity motion estimates, but it is higher-risk and remains
+disabled by default until a human validates it for the intended replay data.
+Switching modes does not disable Mahalanobis gating. Neither mode produces
+confirmed detections or sensor-fused ground truth.
+
 `/api/imagery/ingest` returns normalized frame metadata, CRS, raster bounds, image shape, and metadata quality without changing mission state. `/api/terrain/load` accepts local SRTM `.hgt` or GeoTIFF/COG DEM files and activates CRS-aware terrain routing. `/api/satellite/context` accepts a local Sentinel-style raster with B2/B3/B4/B8 metadata and returns RGB, false-colour, and NDVI context products. Satellite context adjusts visibility-based sector ranking only; it never creates survivor waypoints. `/api/change-detection` registers the previous pass to the current pass with ORB/RANSAC before computing the change mask and returns registration quality. `/api/airspace` is optional OpenSky ADS-B context; configured no-fly volumes remain authoritative and the endpoint falls back to a local cache or an explicit unavailable status.
 
 ### Local DEM and satellite context
@@ -217,7 +262,9 @@ Every route or candidate record uses WGS84 (`EPSG:4326`) and includes mission ID
 
 The current aircraft is a deterministic simulator and is labelled **SIMULATION ONLY**. KairoDrishti plans routes, sectors, and field waypoints for human-operated aircraft; it does not send commands to or autonomously launch a real aircraft. Optional OpenSky integration adds cached ADS-B context for situational awareness when the server is started with `--opensky`. OpenSheet is intentionally not part of the offline core.
 
-The coordinated-search architecture is designed to extend from one simulated aircraft to a multi-drone planning view: sector assignment, non-overlapping coverage, battery reserves, candidate handoff, and route recovery can be represented without changing the field-packet contract.
+Swarm planning extends the simulated aircraft view with sector assignment,
+non-overlapping ownership, battery reserves, candidate handoff, and route
+recovery without changing the offline field-packet boundary.
 
 ## Python API
 
@@ -261,6 +308,5 @@ The planner is decision support for a human-led rescue team. A detection is an i
 
 ## Future plans
 
-1. Coordinated multi-drone search planning with sector assignment, coverage deconfliction, battery reserves, and candidate handoff.
-2. Persistent multi-team mission state with offline synchronization and conflict-safe field packet merging.
-3. Expanded terrain-specific training and evaluation for people, clothing, shelters, and tracks across RGB, thermal, multispectral, and change-detection imagery.
+1. Persistent multi-team mission state with offline synchronization and conflict-safe field packet merging.
+2. Expanded terrain-specific training and evaluation for people, clothing, shelters, and tracks across RGB, thermal, multispectral, and change-detection imagery.
