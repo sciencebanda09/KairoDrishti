@@ -32,3 +32,15 @@ def test_change_detection_finds_new_signal():
     after[2, 3] = .9
     mask = detect_changes(before, after)
     assert int(mask.sum()) == 1
+
+
+def test_change_detection_normalizes_uint8_and_raw_thermal_ranges():
+    before = np.zeros((4, 4), dtype=np.uint8)
+    after = before.copy()
+    after[2, 3] = 255
+    assert int(detect_changes(before, after).sum()) == 1
+
+    thermal_before = np.full((4, 4), 1000, dtype=np.uint16)
+    thermal_after = thermal_before.copy()
+    thermal_after[2, 3] = 5000
+    assert int(detect_changes(thermal_before, thermal_after).sum()) == 1
