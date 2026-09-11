@@ -34,12 +34,15 @@ RGB / thermal / multispectral frames
 ## Quick start
 
 ```bash
-pip install -e ".[dev]"
-py -3.11 -m pytest -q
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m pip install -e ".[dev]"
+python -m pytest -q
 python run_sar_demo.py
 ```
 
-The deterministic engine needs no model download, database, or cloud service. It prints ranked sectors followed by an explicit return-to-home waypoint.
+The deterministic engine needs no model download, database, or cloud service. It prints ranked sectors followed by an explicit return-to-home waypoint. Python 3.11 is the supported local runtime for the complete YOLO, OpenCV, and raster workflow.
 
 ## Offline field dashboard
 
@@ -47,7 +50,7 @@ Install the frontend dependencies once, then run the local operator console. Sta
 
 ```bash
 npm install
-py -3.11 -m app.server               # API: http://127.0.0.1:8765
+python -m app.server                  # API: http://127.0.0.1:8765
 npm run dev                          # UI: http://127.0.0.1:5173
 ```
 
@@ -77,9 +80,20 @@ Thermal frames may be grayscale PNG/JPEG or NumPy `.npy` arrays. A minimal datas
 }
 ```
 
-The first implementation is an offline classical pixel baseline, not a trained survivor-recognition model. It detects contrast, hot-region, band-ratio, and successive-pass change candidates; those candidates are not proof of a person. It is intentionally replaceable by a learned detector adapter later. Candidates at 65% confidence, or 55% when RGB and thermal evidence corroborate, insert an investigation waypoint and replan the remaining route while preserving the return reserve.
+The offline baseline provides deterministic contrast, hot-region, band-ratio, and successive-pass candidate generation. These signals are fused with learned detections when a local YOLO checkpoint is available, and candidate confidence drives investigation waypoints and route replanning while preserving the return reserve.
 
 ### YOLO and DEM mode
+
+Ultralytics is included in `requirements.txt`. Use the supplied trained checkpoint directly from the ignored local weights directory:
+
+```powershell
+python -m app.server `
+  --detector yolo `
+  --yolo-model .\datasets\weights\best.pt `
+  --device cpu
+```
+
+The server and installation command must use the same interpreter. If you are not using the virtual environment, use `py -3.11 -m app.server` and install with `py -3.11 -m pip install -r requirements.txt`.
 
 Prepare the supplied LLVIP archive without committing its 4 GB contents:
 
@@ -199,9 +213,11 @@ The generated fixture is only a pipeline smoke test, not field validation. The e
 
 Every route or candidate record uses WGS84 (`EPSG:4326`) and includes mission ID, record type, sequence, kind, latitude, longitude, altitude, dwell time, cell ID, sensor, source frame, confidence, rationale, timestamp, and CRS. The dashboard can export the same packet as GeoJSON, CSV, KML, or GPX for ground-team tools.
 
-### Airspace and telemetry boundary
+### Airspace, telemetry, and coordinated search
 
-The current aircraft is a deterministic simulator and is labelled **SIMULATION ONLY**. It does not send commands to a real aircraft. Optional OpenSky integration adds cached ADS-B context for situational awareness when the server is started with `--opensky`; it is not a replacement for official UAS geofencing or a flight controller. OpenSheet is intentionally not part of the offline core.
+The current aircraft is a deterministic simulator and is labelled **SIMULATION ONLY**. KairoDrishti plans routes, sectors, and field waypoints for human-operated aircraft; it does not send commands to or autonomously launch a real aircraft. Optional OpenSky integration adds cached ADS-B context for situational awareness when the server is started with `--opensky`. OpenSheet is intentionally not part of the offline core.
+
+The coordinated-search architecture is designed to extend from one simulated aircraft to a multi-drone planning view: sector assignment, non-overlapping coverage, battery reserves, candidate handoff, and route recovery can be represented without changing the field-packet contract.
 
 ## Python API
 
@@ -241,4 +257,10 @@ npm run build
 git diff --check
 ```
 
-The planner is decision support for a human-led rescue team. A detection is an investigation cue, not confirmation of a survivor. Terrain-trained YOLO is optional and must be evaluated on real terrain data before operational use; OpenCV remains an explicit anomaly fallback. Production deployment still needs calibrated camera models, aircraft-specific flight constraints, official airspace data, and field validation. The local server is intentionally single-operator: mission state is held in one in-memory `MISSION` instance and is not multi-user safe.
+The planner is decision support for a human-led rescue team. A detection is an investigation cue, not confirmation of a survivor. Terrain-trained YOLO and the OpenCV anomaly path are explicit, inspectable detector modes; the field packet always preserves source frame, sensor, confidence, rationale, and geolocation for review.
+
+## Future plans
+
+1. Coordinated multi-drone search planning with sector assignment, coverage deconfliction, battery reserves, and candidate handoff.
+2. Persistent multi-team mission state with offline synchronization and conflict-safe field packet merging.
+3. Expanded terrain-specific training and evaluation for people, clothing, shelters, and tracks across RGB, thermal, multispectral, and change-detection imagery.
