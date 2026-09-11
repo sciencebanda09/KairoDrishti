@@ -39,6 +39,17 @@ pytest tests/unit/test_search_rescue.py -q
 
 The deterministic demo needs no network connection, model download, database, or cloud service. It prints ranked sectors followed by an explicit return-to-home waypoint.
 
+## Live 3D dashboard
+
+Run the local, dependency-free mission viewer:
+
+```bash
+python -m app.server
+# open http://127.0.0.1:8765
+```
+
+The browser scene is deterministic and offline. Its projected height-field terrain, route, search sectors, no-fly volume, drone altitude, camera cone, battery, coverage, detection alert, investigation diversion, and return-home leg all use one simulation clock. Use **Synthetic detection** to trigger the RGB + thermal investigation event, then **Export packet** to download the current waypoint packet as GeoJSON. The API at `/api/mission` exposes the planner route and the coordinate-system metadata used by the renderer.
+
 ## Python API
 
 ```python
