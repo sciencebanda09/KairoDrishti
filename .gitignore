@@ -1,0 +1,50 @@
+# Python bytecode and tooling
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments and local configuration
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Packaging/build output
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local mission output and logs
+aegis_runs/
+logs/
+*.log
+*.jsonl
+*.npz
+*.npy
+*.tif
+*.tiff
+*.geotiff
+
+# Generated imagery and temporary exports
+captures/
+exports/
+outputs/
+tmp/
+temp/
