@@ -15,7 +15,15 @@ const mission = {
 }
 
 async function mockApi(page) {
+  let swarmPasses = 0
+  const swarmDrones = [1, 2, 3, 4].map((index) => ({ drone_id: `DRONE-${String(index).padStart(2, '0')}`, status: 'searching', battery_percent: 80 - index * 4, lat: 30.362 + index * .0002, lon: 78.082 + index * .0002, assigned_sector_id: `SECTOR-${String.fromCharCode(64 + index)}`, communication_ok: true }))
+  const swarmPacket = (initialized = true) => ({ mission_id: 'SWARM-E2E-001', offline: true, mode: 'swarm', initialized, simulation_only: true, planning_only: true, framing: 'SIMULATION / PLANNING ONLY', tracking_mode: 'nearest_decay', home: mission.home, cells: [1, 2, 3, 4].map((index) => ({ id: `SECTOR-${String.fromCharCode(64 + index)}`, lat: 30.363 + index * .001, lon: 78.083 + index * .001, priority: index, likelihood: .8 })), drones: initialized ? swarmDrones : [], sectors: initialized ? swarmDrones.map((drone) => ({ cell_id: drone.assigned_sector_id, owning_drone_id: drone.drone_id, owner_status: 'searching', coverage_fraction: .25, priority: 1, likelihood: .8 })) : [], detections: swarmPasses ? [{ id: 'simulated-person', track_id: 'TRK-001', lat: 30.364, lon: 78.084, confidence: .72, label: 'simulated candidate', band: 'rgb' }] : [], tracks: swarmPasses ? [{ track_id: 'TRK-001', lat: 30.364, lon: 78.084, confidence: .72, detection_count: swarmPasses, tracking_mode: 'nearest_decay' }] : [], waypoints: Object.fromEntries((initialized ? swarmDrones : []).map((drone) => [drone.drone_id, [{ sequence: 1, kind: 'search', lat: 30.363, lon: 78.083, altitude: 1180, cell_id: drone.assigned_sector_id }, { sequence: 2, kind: 'return_home', lat: mission.home.lat, lon: mission.home.lon, altitude: mission.home.altitude }]])), swarm_coverage_fraction: .25, no_fly: mission.no_fly })
   await page.route('**/api/mission', async route => route.fulfill({ json: mission }))
+  await page.route('**/api/swarm**', async route => {
+    if (route.request().method() === 'POST' && route.request().url().endsWith('/api/swarm/init')) return route.fulfill({ json: swarmPacket(true) })
+    if (route.request().method() === 'POST' && route.request().url().endsWith('/api/swarm/telemetry')) { swarmPasses += 1; return route.fulfill({ json: swarmPacket(true) }) }
+    return route.fulfill({ json: swarmPacket(false) })
+  })
   await page.route('**/api/terrain', async route => route.fulfill({ json: { source: 'synthetic', grid: null, bounds: null } }))
   await page.route('**/api/readiness', async route => route.fulfill({ json: { detector_mode: 'opencv', model_loaded: false, terrain_detector_ready: false, planner_ready: false, opensky_enabled: false } }))
   await page.route('**/api/airspace', async route => route.fulfill({ json: { source: 'disabled', available: false, aircraft: [] } }))
@@ -81,4 +89,17 @@ test('local DEM and satellite context uploads update source status', async ({ pa
   await expect(page.locator('#dataSourceStatus')).toContainText('SRTM 30M')
   await page.locator('#satelliteInput').setInputFiles({ name: 'sentinel-stack.tif', mimeType: 'image/tiff', buffer: Buffer.from('raster') })
   await expect(page.locator('#dataSourceStatus')).toContainText('RGB/FALSE_COLOUR/NDVI READY')
+})
+
+test('swarm control shows four drones, hatch, and an associated track after two passes', async ({ page }) => {
+  await page.getByRole('button', { name: 'ENTER SWARM MODE' }).click()
+  await expect(page.locator('#swarmControlPanel')).toBeVisible()
+  await page.getByRole('button', { name: 'INIT SWARM' }).click()
+  await expect(page.locator('.swarm-row')).toHaveCount(4)
+  await expect(page.locator('#noFlyHatch')).toBeAttached()
+  await page.getByRole('button', { name: 'SIMULATE PASS' }).click()
+  await page.getByRole('button', { name: 'SIMULATE PASS' }).click()
+  await expect(page.locator('.track-row')).toHaveCount(1)
+  await expect(page.locator('.track-row')).toContainText('TRK-001')
+  await expect(page.locator('#airspaceBadge')).toHaveText('SWARM · PLANNING ONLY')
 })
