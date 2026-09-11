@@ -16,6 +16,7 @@ htmlcov/
 .venv/
 venv/
 env/
+.python-version
 .env
 .env.*
 !.env.example
@@ -65,6 +66,8 @@ data/dem/
 data/satellite/
 data/imagery/
 data/cache/
+data/downloads/
+data/tiles/
 .kaggle_runtime/
 runs/kaggle/
 models/*.pt
@@ -76,6 +79,7 @@ models/*.ckpt
 *.zip
 *.tar
 *.tar.gz
+*.whl
 *.jpg
 *.jpeg
 *.png
