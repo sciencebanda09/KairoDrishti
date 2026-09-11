@@ -14,6 +14,7 @@ authors     = [{ name = "KairoDrishti" }]
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
+    "Pillow>=10.0",
 ]
 
 [project.optional-dependencies]
