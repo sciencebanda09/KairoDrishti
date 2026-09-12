@@ -1,476 +1,161 @@
-# KairoDrishti Search & Rescue Aerial Intelligence
+# KairoDrishti
 
-KairoDrishti is an offline-first decision-support system for PS #8. It helps rescue teams search difficult terrain by converting aerial observations into ranked sectors, corroborated detections, and geolocated flight waypoints.
+## Search & Rescue Aerial Intelligence · PS #8
 
-It is field-oriented: the primary output is an actionable search packet, not a gallery of images. The system runs locally without connectivity, cloud inference, or a database.
+KairoDrishti helps rescue teams search difficult terrain faster. It turns aerial imagery into ranked search areas, investigation coordinates, safe routes, and field-ready waypoints.
 
-## Capabilities
+## The five core solutions
 
-- Person and human-made-sign detections with geolocation, confidence, label, source frame, and sensor band.
-- Cross-band fusion for RGB, thermal, and multispectral detections.
-- Search-area prioritisation using last-known position, movement radius, terrain, visibility, and prior coverage.
-- Battery-aware coverage planning with a protected return-to-home reserve.
-- Offline change detection for aligned successive-pass imagery.
-- Compact field packets containing detections and ordered waypoints.
-- Simulated drone replay and uploaded RGB/thermal/multispectral/geospatial raster datasets.
-- Detection-driven investigation waypoints, route replanning, airspace checks, and return-home reserve protection.
+1. **Detect** people and human signs: clothing, shelters, and tracks.
+2. **Prioritise** search sectors using last known position, movement, terrain, visibility, and coverage.
+3. **Plan** battery-aware routes with terrain clearance, no-fly zones, return-home reserve, and swarm sectors.
+4. **Use more evidence** with RGB, thermal, multispectral, satellite, and change detection.
+5. **Deliver action** as geolocated waypoints and GeoJSON, CSV, KML, or GPX field packets.
+
+The system runs locally with cached data and local AI models. A detection is an investigation cue, not automatic survivor confirmation.
 
 ## Workflow
 
 ```text
-RGB / thermal / multispectral frames
-              ↓
-     local detector adapters
-              ↓
-       cross-band fusion
-              ↓
-  terrain + LKP + movement scoring
-              ↓
- battery-aware coverage planning
-              ↓
-  geolocated field packet + RTH waypoint
+Imagery → Detection → Evidence fusion → Priority sectors → Safe route → Rescue waypoint
 ```
-
-## Technical architecture
-
-```mermaid
-flowchart LR
-  subgraph INPUTS[Mission and sensor inputs]
-    RGB[Drone RGB imagery]
-    THERMAL[Drone thermal imagery]
-    MULTI[Multispectral imagery]
-    CHANGE[Successive passes]
-    SAT[Satellite context]
-    DEM[DEM / SRTM terrain]
-    OSM[Optional OpenStreetMap context]
-    OPERATOR[Last-known position / manual coordinates]
-  end
-
-  subgraph API[Offline local API and ingestion]
-    SERVER[Python local HTTP API\napp/server.py]
-    INGEST[Image, raster, metadata and CRS ingestion\nengine/search_rescue/geospatial.py]
-    VISION[Decode and RGB preparation\nNumPy / OpenCV]
-  end
-
-  subgraph CV[Computer vision and detection]
-    PERSON[Person / terrain YOLO checkpoint\nperson, shelter, track]
-    CLOTHING[Clothing YOLO checkpoint\nclothing]
-    BASELINE[OpenCV fallback\ncontrast / anomaly cues]
-    THERMALDET[Thermal hot-region detector]
-    MULTIDET[Multispectral band-ratio detector]
-    CHANGEDET[Registered change detector\nORB / RANSAC / change mask]
-  end
-
-  subgraph INTELLIGENCE[Detection intelligence]
-    FUSION[Cross-band fusion\nconfidence and evidence]
-    TRACK[Nearest-decay or IMM tracking\ntrack IDs / repeated sightings]
-    TAXONOMY[Human-sign taxonomy\nperson · clothing · shelter · track]
-  end
-
-  subgraph PLANNING[Search intelligence and route planning]
-    PRIORITY[Search-cell prioritization\nLKP · movement · terrain · visibility · coverage]
-    ROUTE[Battery-aware coverage planning\nA* detours · DEM clearance · RTH reserve]
-    AIRSPACE[No-fly and airspace checks]
-    SWARM[Swarm sector assignment\ncoverage · separation · replanning]
-  end
-
-  subgraph UI[Operator dashboard]
-    THREE[Three.js terrain and route view]
-    LEAFLET[Leaflet geographic map\nOSM online / offline fallback]
-    CAMERA[Live drone camera\nRGB · thermal · multispectral · change]
-    QUEUE[Human-sign counters and Candidate Queue]
-    TRACKS[Tracks and Swarm Control]
-    COORD[Coordinate marker and investigation flow]
-  end
-
-  subgraph OUTPUTS[Field outputs]
-    WAYPOINTS[Geolocated investigation and search waypoints]
-    PACKET[Field packet export\nGeoJSON · CSV · KML · GPX]
-    GROUND[Ground-team rescue coordinate]
-  end
-
-  RGB --> SERVER
-  THERMAL --> SERVER
-  MULTI --> SERVER
-  CHANGE --> SERVER
-  SAT --> SERVER
-  DEM --> SERVER
-  OSM -. optional context .-> LEAFLET
-  OPERATOR --> SERVER
-  SERVER --> INGEST --> VISION
-  VISION --> PERSON
-  VISION --> CLOTHING
-  VISION --> BASELINE
-  VISION --> THERMALDET
-  VISION --> MULTIDET
-  CHANGE --> CHANGEDET
-  PERSON --> FUSION
-  CLOTHING --> FUSION
-  BASELINE --> FUSION
-  THERMALDET --> FUSION
-  MULTIDET --> FUSION
-  CHANGEDET --> FUSION
-  FUSION --> TAXONOMY --> TRACK
-  TRACK --> PRIORITY
-  OPERATOR --> PRIORITY
-  DEM --> PRIORITY
-  SAT --> PRIORITY
-  PRIORITY --> ROUTE
-  AIRSPACE --> ROUTE
-  ROUTE --> SWARM
-  TRACK --> ROUTE
-  ROUTE --> THREE
-  ROUTE --> LEAFLET
-  SWARM --> THREE
-  SWARM --> LEAFLET
-  VISION --> CAMERA
-  TAXONOMY --> QUEUE
-  TRACK --> TRACKS
-  FUSION --> QUEUE
-  QUEUE --> COORD
-  COORD --> WAYPOINTS
-  ROUTE --> WAYPOINTS
-  WAYPOINTS --> PACKET --> GROUND
-  THREE --> COORD
-  LEAFLET --> COORD
-```
-
-The system is offline-first: local detection, geospatial processing, tracking, prioritization, route planning, and field-packet export do not require connectivity. OpenStreetMap is an optional geographic context layer; the dashboard keeps a synthetic/offline map when tiles are unavailable. The planner is human-led decision support and produces rescue waypoints rather than controlling a real aircraft.
-
-[Open the compact technical architecture overview](docs/architecture-overview.svg)
-
-## Dashboard screenshots
-
-The dashboard turns the PS #8 pipeline into an operator workflow: the map shows ranked sectors and routes, the camera shows the selected aircraft view, and the operations panels explain what was detected and what the rescue team should do next.
-
-### Mission overview
-
-The main console combines 3D terrain, geographic context, live camera view, route coverage, drone position, and field coordinates in one screen.
 
 ![KairoDrishti dashboard overview](docs/screenshots/dashboard-overview.png)
 
-### Detection to field waypoint
+## Dashboard screenshots
 
-The operations view connects human-sign intelligence to action: candidate type, confidence, latitude/longitude, investigation status, and field-packet readiness are shown together.
-
-![Detection queue and geolocated field output](docs/screenshots/detection-and-field-output.png)
-
-### Coordinated swarm search
-
-Swarm mode assigns separate sectors to each aircraft and shows ownership, route separation, battery state, and geographic coverage for coordinated search.
-
-![KairoDrishti swarm search](docs/screenshots/swarm-search.png)
-
-## Evaluation mapping
-
-| Criterion | What to show in KairoDrishti |
+| View | What it shows |
 | --- | --- |
-| Innovation and originality | Human-sign intelligence for people, clothing, shelters, and tracks; repeated-sighting tracks; successive-pass change detection; adaptive search replanning. |
-| Functionality and usability | Upload an image, review the candidate queue, see the coordinate on the map, investigate it, and export a field packet. |
-| Technical complexity | Dual YOLO detectors, thermal and multispectral paths, confidence/evidence fusion, nearest-decay tracking, terrain-aware A* routing, battery reserve, airspace, and swarm sectors. |
-| User experience and design | Mission story, live camera, ranked sectors, human-sign counters, candidate status, decision trace, geographic context, and clear next actions. |
-| Quality of presentation | Compact architecture overview, annotated dashboard screenshots, offline-first explanation, and a repeatable detection-to-waypoint demo. |
+| [Mission overview](docs/screenshots/dashboard-overview.png) | 3D terrain, route, map, and drone camera |
+| [Detection and field output](docs/screenshots/detection-and-field-output.png) | Human-sign counts, candidate queue, and coordinates |
+| [Swarm search](docs/screenshots/swarm-search.png) | Drone ownership, sectors, coverage, and battery |
 
-## Judging demo
+[Open the compact technical architecture diagram](docs/architecture-overview.svg)
 
-Use this sequence to tell the complete PS #8 story in under five minutes:
+## Run locally
 
-1. Start the local API and open the dashboard. Point out the ranked sectors, live drone camera, and offline status.
-2. Start the mission and explain that the planner is scanning the highest-likelihood area using location, movement, terrain, and prior coverage.
-3. Upload an RGB aerial image with the person and clothing YOLO models enabled.
-4. Show the human-sign counters and candidate queue. Explain that a cue is evidence for investigation, not automatic confirmation of a survivor.
-5. Select the candidate and show the latitude/longitude on the geographic map and the `MISSION EVIDENCE` decision trace.
-6. Use `INVESTIGATE COORDINATE` to create the geolocated search action, then export GeoJSON or GPX for the ground team.
-7. Demonstrate one differentiator: switch to thermal or multispectral analysis, compare two passes with change detection, or initialize swarm mode to show non-overlapping sector ownership.
+### 1. Install dependencies
 
-The aircraft and camera movement are deterministic planning/replay visuals for the dashboard demo. KairoDrishti produces human-reviewed search decisions and field waypoints; it does not directly control or launch a real aircraft.
-
-## Quick start
-
-```bash
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
+```powershell
+cd "C:\Users\kumar\OneDrive\Desktop\KairoDrishti\KairoDrishti"
 python -m pip install -r requirements.txt
-python -m pip install -e ".[dev]"
-python -m pytest -q
-python run_sar_demo.py
-```
-
-The deterministic engine needs no model download, database, or cloud service. It prints ranked sectors followed by an explicit return-to-home waypoint. Python 3.11 is the supported local runtime for the complete YOLO, OpenCV, and raster workflow.
-
-## Offline field dashboard
-
-Install the frontend dependencies once, then run the local operator console. Start the API in one terminal and Vite in another:
-
-```bash
 npm install
-python -m app.server                  # API: http://127.0.0.1:8765
-npm run dev                          # UI: http://127.0.0.1:5173
 ```
 
-For a single-server production preview:
+### 2. Start the API
 
-```bash
+Basic offline mode:
+
+```powershell
+python -m app.server
+```
+
+YOLO mode with person/terrain and clothing models:
+
+```powershell
+py -3.11 -m pip install ultralytics
+py -3.11 -m app.server `
+  --detector yolo `
+  --yolo-model ".\datasets\weights\best.pt" `
+  --clothing-model "C:\Users\kumar\Downloads\best.pt" `
+  --device cpu
+```
+
+### 3. Start the dashboard
+
+Open a second terminal:
+
+```powershell
+cd "C:\Users\kumar\OneDrive\Desktop\KairoDrishti\KairoDrishti"
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`.
+
+For the compiled dashboard:
+
+```powershell
 npm run build
-python -m app.server                 # serves the compiled UI at http://127.0.0.1:8765
+python -m app.server
 ```
 
-The browser console is offline-first and 3D-first. The primary view is the bounded Three.js terrain scene, with ranked sectors, route, configured no-fly area, simulated drone position, detections, coordinates, and terrain source. A compact 2D minimap keeps the whole search picture visible while the simulation camera follows the route. The header explicitly marks the aircraft as **SIMULATION ONLY**. The sensor workspace provides RGB, thermal, multispectral, and registered successive-pass change tabs. **EXPORT FIELD PACKET** supports GeoJSON, CSV, KML, and GPX.
+Open `http://127.0.0.1:8765`.
 
-### Real frame input
+## Demo flow
 
-The field console supports the **DRONE CAMERA**, **LOAD FRAME**, **UPLOAD DATASET**, and **LOAD TWO PASSES** workflows. JPEG/PNG/NumPy frames can use explicit camera metadata, while GeoTIFF/COG imagery uses its raster transform and CRS when the optional `rasterio` dependency is installed. Images are decoded locally with OpenCV, passed through a terrain-trained YOLO model when available, or through the explicit OpenCV baseline fallback. Thermal and multispectral inputs remain separate workflows and are never mislabeled as RGB.
+1. Start the mission and show the ranked route.
+2. Upload an RGB aerial image.
+3. Show PEOPLE, CLOTHING, SHELTERS, and TRACKS counters.
+4. Review the candidate confidence and source sensor.
+5. Show the latitude/longitude on the map.
+6. Select **INVESTIGATE COORDINATE**.
+7. Export a GeoJSON or GPX field packet.
+8. Show thermal, change detection, or swarm mode.
 
-Thermal frames may be grayscale PNG/JPEG or NumPy `.npy` arrays. A minimal dataset manifest is:
+## Technical approach
 
-```json
-{
-  "frames": [
-    {"frame_id": "frame-001", "path": "rgb/frame-001.jpg", "sensor": "rgb",
-     "lat": 30.3668, "lon": 78.0852, "altitude_m": 120, "ground_sample_distance_m": 0.25},
-    {"frame_id": "frame-001-ir", "path": "thermal/frame-001.npy", "sensor": "thermal",
-     "lat": 30.3668, "lon": 78.0852, "altitude_m": 120, "ground_sample_distance_m": 0.25}
-  ]
-}
-```
+| Layer | Implementation |
+| --- | --- |
+| Detection | Local YOLO models plus OpenCV fallback |
+| Sensors | RGB, thermal, multispectral, satellite, successive passes |
+| Intelligence | Evidence fusion, confidence, taxonomy, nearest-decay tracks |
+| Planning | Priority scoring, battery constraints, DEM clearance, A*, no-fly zones |
+| Swarm | Sector assignment, separation, coverage, battery state |
+| Dashboard | Three.js terrain, Leaflet map, live camera, candidate queue |
+| Output | Geolocated waypoints and GeoJSON/CSV/KML/GPX |
 
-The offline baseline provides deterministic contrast, hot-region, band-ratio, and successive-pass candidate generation. These signals are fused with learned detections when a local YOLO checkpoint is available, and candidate confidence drives investigation waypoints and route replanning while preserving the return reserve.
-
-### YOLO and DEM mode
-
-Ultralytics is included in `requirements.txt`. Use the supplied trained checkpoint directly from the ignored local weights directory:
-
-```powershell
-python -m app.server `
-  --detector yolo `
-  --yolo-model .\datasets\weights\best.pt `
-  --device cpu
-```
-
-To run the person/terrain checkpoint together with a separate clothing checkpoint, pass both models. RGB uploads are analyzed by both local detectors and their detections are merged into the mission queue:
-
-```powershell
-py -3.11 -m app.server `
-  --detector yolo `
-  --yolo-model .\datasets\weights\best.pt `
-  --clothing-model C:\Users\kumar\Downloads\best.pt `
-  --device cpu
-```
-
-The server and installation command must use the same interpreter. If you are not using the virtual environment, use `py -3.11 -m app.server` and install with `py -3.11 -m pip install -r requirements.txt`.
-
-Prepare the supplied LLVIP archive without committing its 4 GB contents:
-
-```bash
-python tools/prepare_llvip.py C:/Users/kumar/Downloads/LLVIP.zip
-pip install -e ".[yolo]"
-python tools/train_yolo.py --data datasets/llvip_yolo/dataset.yaml \
-  --base-model models/yolo11n.pt \
-  --output models/kairodristi-llvip-person.pt --device cpu
-python tools/fetch_dem.py --tile N30E078 --output data/dem
-```
-
-### Kaggle GPU training
-
-The laptop can prepare the dataset, while Kaggle runs the expensive YOLO training on a GPU. The Kaggle CLI must be installed and authenticated first (`kaggle --version` and `kaggle config view`). The LLVIP-derived dataset is uploaded privately to the configured Kaggle account; the raw ZIP and generated images remain ignored by Git.
-
-The wrapper creates a deterministic 85/15 train/validation split, rewrites the dataset YAML to use portable Kaggle paths, uploads or versions the private dataset, submits a GPU kernel, and optionally waits for and downloads the artifacts:
-
-```powershell
-py -3.11 tools\kaggle_train.py `
-  --dataset datasets\llvip_yolo `
-  --epochs 30 `
-  --imgsz 640 `
-  --batch 16 `
-  --wait
-```
-
-Without `--wait`, monitor and download manually:
-
-```powershell
-kaggle kernels status dmechatronicx/kairodristi-llvip-training
-kaggle kernels output dmechatronicx/kairodristi-llvip-training `
-  -p runs\kaggle\kairodristi-llvip-training --force
-```
-
-When the run completes, the wrapper copies `best.pt` to `models/kairodristi-llvip-person.pt`, alongside the downloaded training plots and metrics under `runs/kaggle/`. Use that checkpoint with the local API:
-
-```powershell
-py -3.11 -m app.server `
-  --yolo-model models\kairodristi-llvip-person.pt `
-  --device cpu
-```
-
-Kaggle training uses the visible LLVIP frames for the RGB person detector. LLVIP does not provide the drone GPS metadata required for field geolocation, so the trained checkpoint is used as the detector while KairoDrishti's local frame metadata and planner continue to provide geolocation and route decisions. The server defaults to `--detector auto`: it tries the trained checkpoint, then the bundled `models/yolo11n.pt`, and then reports an explicit OpenCV fallback if YOLO cannot load. Use `--detector opencv` to force the classical path or `--detector yolo` to fail fast when a YOLO model is required.
-
-Run advanced mode with a local checkpoint and cached SRTM DEM:
-
-```bash
-python -m app.server --yolo-model models/kairodristi-llvip-person.pt \
-  --dem data/dem/N30E078.hgt --device cpu
-```
-
-The YOLO model detects RGB people; paired infrared evidence corroborates detections. The DEM-backed planner is separate from detection and validates terrain clearance, altitude, airspace volumes, battery, and return-home legs. If the model or DEM is missing, the server reports classical/planner fallback status rather than claiming advanced mode is active.
-
-### Dataset manifest
-
-```json
-{
-  "frames": [
-    {"frame_id": "frame-001", "path": "rgb/frame-001.jpg", "sensor": "rgb",
-     "lat": 30.3668, "lon": 78.0852, "altitude_m": 120,
-     "ground_sample_distance_m": 0.25},
-    {"frame_id": "frame-001-ir", "path": "thermal/frame-001.npy", "sensor": "thermal",
-     "lat": 30.3668, "lon": 78.0852, "altitude_m": 120,
-     "ground_sample_distance_m": 0.25}
-  ]
-}
-```
-
-Thermal input accepts grayscale PNG/JPEG or `.npy` arrays. Multispectral input accepts `.npy` arrays with at least two bands. Public pedestrian datasets often lack drone GPS, so add explicit simulated coordinates when replaying them in this demo.
-
-### Local API
+## Useful API routes
 
 ```text
 GET  /api/mission
-POST /api/mission/reset
-POST /api/mission/telemetry
+GET  /api/terrain
+GET  /api/readiness
 POST /api/frames/detect
-POST /api/dataset/analyze
 POST /api/change-detection
-POST /api/imagery/ingest
 POST /api/terrain/load
-POST /api/satellite/context
-GET  /api/mission/export?format=geojson|csv|kml|gpx
-GET  /api/airspace
+POST /api/swarm/init
+GET  /api/swarm
+GET  /api/mission/export?format=geojson
 ```
 
-### Swarm mode
+## Data support
 
-Swarm mode is available through `POST /api/swarm/init`, `POST
-/api/swarm/telemetry`, `GET /api/swarm`, and `POST /api/swarm/reset`. Packets
-include per-drone telemetry, sector ownership, battery-aware routes, candidate
-tracks, and aggregate coverage. The response is labelled **SIMULATION /
-PLANNING ONLY**.
+- Local SRTM `.hgt`, GeoTIFF, and COG DEM files
+- RGB `.png`, `.jpg`, `.jpeg`, and `.npy` frames
+- Thermal `.png`, `.jpg`, and `.npy` data
+- Multispectral `.npy` arrays
+- Successive-pass imagery for change detection
+- Optional OpenStreetMap geographic context with offline fallback
 
-KairoDrishti is a multi-drone search planning and field intelligence system. It
-plans and simulates coordinated multi-drone search and candidate tracking. It
-does not autonomously control or launch real aircraft, and it does not claim
-sensor-fused ground truth. A candidate or track remains an investigation cue,
-never confirmation of a survivor.
-
-When there are more aircraft than sectors, the best-battery unassigned aircraft
-is held as the reserve. The reserve exists for candidate investigation and
-failure recovery, not because it is the weakest asset. Offline or
-disconnected aircraft are excluded and their sectors are reassigned among
-healthy simulated aircraft.
-
-### Flocking
-
-The frontend applies the pure `flocking.py` motion layer while simulated drones
-move between their Phase 1 waypoints. Separation, alignment, and cohesion
-govern local in-flight spacing; goal-seeking has dominant weight so flocking
-adjusts spacing without abandoning an assigned sector. No-fly boundaries clamp
-simulated velocity components before a marker can enter the restricted area.
-
-### Tracking
-
-Candidate association always runs Mahalanobis gating using the 95% chi-square
-threshold for two position degrees of freedom. This is the mandatory identity
-gate for repeated passes and multi-band observations; it is independent of the
-motion estimator.
-
-`TRACKING_MODE` supports `nearest_decay` and `imm`. The default is
-`nearest_decay`: it keeps the last matched observation, decays confidence
-exponentially with elapsed time, and is the safer always-correct fallback for
-an offline planning console. `imm` provides constant-velocity and
-constant-turn-rate Kalman models through an interacting multiple model filter
-for higher-fidelity motion estimates, but it is higher-risk and remains
-disabled by default until a human validates it for the intended replay data.
-Switching modes does not disable Mahalanobis gating. Neither mode produces
-confirmed detections or sensor-fused ground truth.
-
-`/api/imagery/ingest` returns normalized frame metadata, CRS, raster bounds, image shape, and metadata quality without changing mission state. `/api/terrain/load` accepts local SRTM `.hgt` or GeoTIFF/COG DEM files and activates CRS-aware terrain routing. `/api/satellite/context` accepts a local Sentinel-style raster with B2/B3/B4/B8 metadata and returns RGB, false-colour, and NDVI context products. Satellite context adjusts visibility-based sector ranking only; it never creates survivor waypoints. `/api/change-detection` registers the previous pass to the current pass with ORB/RANSAC before computing the change mask and returns registration quality. `/api/airspace` is optional OpenSky ADS-B context; configured no-fly volumes remain authoritative and the endpoint falls back to a local cache or an explicit unavailable status.
-
-### Local DEM and satellite context
-
-The field console is local-first. Use **LOAD DEM** with an SRTM `.hgt` or a single-band GeoTIFF/COG elevation raster. The console reports source, CRS, resolution, valid-pixel statistics, and uses slope/elevation in terrain-aware routing and sector ranking. If no DEM is loaded, the 3D scene remains clearly labelled synthetic.
-
-Use **LOAD SATELLITE CONTEXT** with a prepared Sentinel-2 GeoTIFF/COG. Provide band metadata as JSON when the raster is not a four-band B2/B3/B4/B8 stack:
-
-```json
-{"source_type":"satellite","bands":["B2","B3","B4","B8"],"timestamp":"2025-01-15T05:20:00Z","cloud_percent":12.4}
-```
-
-Sentinel-2 is an overview source, not a person detector. The product keeps drone RGB/thermal imagery as the primary detection path and does not download imagery or store Copernicus credentials.
-
-### Terrain detector training and evaluation
-
-The required terrain-search taxonomy is `person`, `clothing`, `shelter`, and `track`. Prepare a hybrid dataset using public aerial/person data, generated terrain fixtures, and later field annotations:
+## Validation
 
 ```powershell
-py -3.11 tools\build_terrain_fixture.py --output datasets\terrain_fixture
-py -3.11 tools\train_yolo.py --data datasets\terrain_fixture\dataset.yaml `
-  --base-model models\yolo11n.pt --output models\kairodristi-terrain.pt
-py -3.11 tools\evaluate_detector.py --model models\kairodristi-terrain.pt `
-  --data datasets\terrain_fixture\dataset.yaml
+npm run build
+npm run test:e2e
+python -m pytest
 ```
 
-The generated fixture is only a pipeline smoke test, not field validation. The evaluation report records precision, recall, mAP50, mAP50-95, and required-class coverage. A checkpoint is considered terrain-ready only when all four class names are present.
+The prototype is a local decision-support and planning console. Its aircraft movement and camera are simulated replay visuals; it does not directly control or launch a real aircraft.
 
-### Field packet schema and formats
+## Research references
 
-Every route or candidate record uses WGS84 (`EPSG:4326`) and includes mission ID, record type, sequence, kind, latitude, longitude, altitude, dwell time, cell ID, sensor, source frame, confidence, rationale, timestamp, and CRS. The dashboard can export the same packet as GeoJSON, CSV, KML, or GPX for ground-team tools.
-
-### Airspace, telemetry, and coordinated search
-
-The current aircraft is a deterministic simulator and is labelled **SIMULATION ONLY**. KairoDrishti plans routes, sectors, and field waypoints for human-operated aircraft; it does not send commands to or autonomously launch a real aircraft. Optional OpenSky integration adds cached ADS-B context for situational awareness when the server is started with `--opensky`. OpenSheet is intentionally not part of the offline core.
-
-Swarm planning extends the simulated aircraft view with sector assignment,
-non-overlapping ownership, battery reserves, candidate handoff, and route
-recovery without changing the offline field-packet boundary.
-
-## Python API
-
-```python
-from engine.search_rescue import (
-    GeoPoint, SearchCell, SearchMission, SearchAndRescueMission,
-)
-
-home = GeoPoint(30.362, 78.082, 1200)
-mission = SearchAndRescueMission(SearchMission(
-    "mission-001", home,
-    [SearchCell("sector-a", GeoPoint(30.363, 78.083), 20_000,
-                terrain_score=.8, movement_score=.9)],
-    battery_minutes=20,
-))
-field_packet = mission.field_packet()
-```
-
-`field_packet` contains the mission ID, offline status, fused detections, ordered search waypoints, priority rationales, and a final `return_home` waypoint. Local detector adapters can create `AerialDetection` records and call `mission.ingest_detections(...)` without changing the planner.
+- [YOLO: Unified Real-Time Object Detection](https://arxiv.org/abs/1506.02640)
+- [Ultralytics YOLO documentation](https://docs.ultralytics.com/)
+- [HIT-UAV thermal aerial dataset](https://arxiv.org/abs/2204.03245)
+- [ESA Sentinel-2 multispectral instrument](https://www.esa.int/Applications/Observing_the_Earth/Copernicus/Sentinel-2/Instrument)
+- [USGS SRTM elevation data](https://www.usgs.gov/centers/eros/science/usgs-eros-archive-digital-elevation-shuttle-radar-topography-mission-srtm)
+- [UAV search-and-rescue coverage planning](https://www.sciencedirect.com/science/article/pii/S0305054824002946)
+- [ORB feature matching](https://ieeexplore.ieee.org/document/6126544)
+- [Kalman filtering](https://doi.org/10.1115/1.3662552)
+- [OpenStreetMap tile usage policy](https://operations.osmfoundation.org/policies/tiles/)
 
 ## Project layout
 
 ```text
-engine/search_rescue/        models, detectors, fusion, prioritization, coverage, replanning
-app/server.py                offline API and dataset/frame ingestion server
-frontend/                    Vite + Three.js operator console
-run_sar_demo.py              deterministic offline field-packet demo
-tests/unit/                  engine, detector, API, and replanning tests
+app/server.py                 local Python API
+engine/search_rescue/         detection, tracking, planning, export
+frontend/src/                 Three.js + Leaflet dashboard
+tests/unit/                   engine and API tests
+tests/e2e/                    dashboard tests
+docs/                         architecture and screenshots
 ```
-
-## Validation and safety boundary
-
-```bash
-py -3.11 -m pytest -q
-py -3.11 -m compileall -q engine app tests
-npm run build
-git diff --check
-```
-
-The planner is decision support for a human-led rescue team. A detection is an investigation cue, not confirmation of a survivor. Terrain-trained YOLO and the OpenCV anomaly path are explicit, inspectable detector modes; the field packet always preserves source frame, sensor, confidence, rationale, and geolocation for review.
-
-## Future plans
-
-1. Persistent multi-team mission state with offline synchronization and conflict-safe field packet merging.
-2. Expanded terrain-specific training and evaluation for people, clothing, shelters, and tracks across RGB, thermal, multispectral, and change-detection imagery.
