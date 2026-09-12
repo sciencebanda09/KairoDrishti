@@ -1,0 +1,18 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: Arial, sans-serif;
+}
+
+#map {
+    height: 100vh;
+    width: 100%;
+}
+
+.leaflet-popup-content img {
+    max-width: 300px;
+    max-height: 300px;
+    display: block;
+    border-radius: 6px;
+}
